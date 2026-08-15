@@ -69,7 +69,13 @@ def run():
         # Naive matching by list position — fine for now since our single
         # fixture's assignments come back in source order. Once we have
         # fixtures with reordering issues, switch to name-based matching.
-        for predicted, expected in zip(predicted_assignments, expected_assignments):
+        #
+        # Important: if predicted is shorter than expected (e.g. extraction
+        # found nothing), those missing expected items must still count as
+        # failures, not be silently skipped by zip() stopping at the
+        # shorter list.
+        for i, expected in enumerate(expected_assignments):
+            predicted = predicted_assignments[i] if i < len(predicted_assignments) else {}
             scores = score_assignment_match(predicted, expected)
             for key, matched in scores.items():
                 totals[key] += int(matched)
