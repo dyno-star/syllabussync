@@ -7,7 +7,14 @@ psycopg2-binary==2.9.9
 python-multipart==0.0.9
 python-dotenv==1.0.1
 
-# Extraction pipeline (added incrementally as we build)
+
+# Extraction pipeline
+pdfplumber==0.11.4
+
+# Dev-only: used to generate synthetic test fixtures, not needed at runtime
+reportlab==4.2.5
+
+# Added incrementally as we build ML-based extraction
 # unstructured[pdf]==0.15.13
 # transformers==4.44.2
 # torch==2.4.1
