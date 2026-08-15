@@ -1,59 +1,110 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import "./styles.css";
+import { api } from "./api";
+import CourseList from "./components/CourseList";
+import UploadView from "./components/UploadView";
+import CourseDetail from "./components/CourseDetail";
 
+// view = "list" | "upload" | "detail"
 export default function App() {
-  const [file, setFile] = useState(null);
-  const [result, setResult] = useState(null);
+  const [view, setView] = useState("list");
+  const [courses, setCourses] = useState([]);
+  const [loadingCourses, setLoadingCourses] = useState(true);
+  const [selectedCourse, setSelectedCourse] = useState(null);
   const [error, setError] = useState(null);
-  const [loading, setLoading] = useState(false);
 
-  async function handleUpload(e) {
-    e.preventDefault();
-    if (!file) return;
+  useEffect(() => {
+    refreshCourses();
+  }, []);
 
-    setLoading(true);
-    setError(null);
-    setResult(null);
-
-    const formData = new FormData();
-    formData.append("file", file);
-
+  async function refreshCourses() {
+    setLoadingCourses(true);
     try {
-      const res = await fetch("/api/documents/upload", {
-        method: "POST",
-        body: formData,
-      });
-      if (!res.ok) throw new Error(`Upload failed: ${res.status}`);
-      const data = await res.json();
-      setResult(data);
+      const data = await api.listCourses();
+      setCourses(data);
     } catch (err) {
       setError(err.message);
     } finally {
-      setLoading(false);
+      setLoadingCourses(false);
     }
   }
 
+  async function openCourse(id) {
+    setError(null);
+    try {
+      const course = await api.getCourse(id);
+      setSelectedCourse(course);
+      setView("detail");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  function handleUploaded(course) {
+    setSelectedCourse(course);
+    setView("detail");
+    refreshCourses();
+  }
+
+  async function handleDelete() {
+    if (!selectedCourse) return;
+    if (!confirm(`Delete ${selectedCourse.course_code || "this course"}? This can't be undone.`)) {
+      return;
+    }
+    await api.deleteCourse(selectedCourse.id);
+    setSelectedCourse(null);
+    setView("list");
+    refreshCourses();
+  }
+
   return (
-    <div style={{ maxWidth: 640, margin: "40px auto", fontFamily: "sans-serif" }}>
-      <h1>SyllabusSync</h1>
-      <p>Upload a syllabus PDF to test the extraction pipeline.</p>
+    <div style={{ maxWidth: 780, margin: "0 auto", padding: "40px 24px" }}>
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 32 }}>
+        <div style={{ fontFamily: "var(--font-display)", fontSize: 22, cursor: "pointer" }} onClick={() => setView("list")}>
+          SyllabusSync
+        </div>
+        {view === "list" && courses.length > 0 && (
+          <button className="btn" onClick={() => setView("upload")}>
+            + Upload syllabus
+          </button>
+        )}
+      </header>
 
-      <form onSubmit={handleUpload}>
-        <input
-          type="file"
-          accept="application/pdf"
-          onChange={(e) => setFile(e.target.files[0])}
+      {error && (
+        <div
+          className="card"
+          style={{
+            padding: 12,
+            marginBottom: 20,
+            background: "var(--coral-soft)",
+            color: "var(--coral)",
+            fontSize: 13,
+          }}
+        >
+          {error}
+        </div>
+      )}
+
+      {view === "list" && (
+        <CourseList
+          courses={courses}
+          loading={loadingCourses}
+          onSelectCourse={openCourse}
+          onUploadClick={() => setView("upload")}
         />
-        <button type="submit" disabled={!file || loading}>
-          {loading ? "Extracting..." : "Upload"}
-        </button>
-      </form>
+      )}
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {view === "upload" && (
+        <UploadView onUploaded={handleUploaded} onCancel={() => setView("list")} />
+      )}
 
-      {result && (
-        <pre style={{ background: "#f5f5f5", padding: 16, marginTop: 16 }}>
-          {JSON.stringify(result, null, 2)}
-        </pre>
+      {view === "detail" && selectedCourse && (
+        <CourseDetail
+          course={selectedCourse}
+          onUpdated={setSelectedCourse}
+          onBack={() => setView("list")}
+          onDelete={handleDelete}
+        />
       )}
     </div>
   );
