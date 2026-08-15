@@ -1,6 +1,6 @@
 {
-  "source_file": "civc101_real_syllabus.pdf",
-  "note": "Real Drexel syllabus template (CIVC 101, Spring 2024). Grading is in points-out-of-100 embedded in prose headings, not 'Name: XX%' lines — the regex baseline is expected to score 0% here. This fixture exists specifically to demonstrate that gap and motivate the move to ML-based extraction (Table QA / Document QA / zero-shot classification).",
+  "source_file": "civc101_real_syllabus.dotx",
+  "note": "Same real syllabus as civc101_real_syllabus.pdf, but as the original .dotx (Word template) file, uploaded by the user directly rather than converted. Exists to test the docx_parser.py code path (including the dotx content-type patch) separately from the PDF path — same expected extraction result, different parser.",
   "course_code": "CIVC 101",
   "course_name": "Introduction to Civic Engagement",
   "instructor": "Zoraida Cordero",

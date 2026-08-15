@@ -27,14 +27,14 @@ export default function UploadView({ onUploaded, onCancel }) {
         Upload a syllabus
       </p>
       <p style={{ color: "var(--ink-soft)", fontSize: 14, marginBottom: 20 }}>
-        PDF only, for now. Extraction runs automatically — you'll be able to fix
-        anything it gets wrong on the next screen.
+        PDF or Word (.docx, .dotx). Extraction runs automatically — you'll be able to
+        fix anything it gets wrong on the next screen.
       </p>
 
       <form onSubmit={handleSubmit}>
         <input
           type="file"
-          accept="application/pdf"
+          accept="application/pdf,.docx,.dotx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.wordprocessingml.template"
           onChange={(e) => setFile(e.target.files[0])}
           style={{ marginBottom: 16, fontFamily: "var(--font-mono)", fontSize: 13 }}
         />

@@ -8,22 +8,36 @@ from app.services.extraction import extract_syllabus
 
 router = APIRouter()
 
+ALLOWED_CONTENT_TYPES = {
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # .docx
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.template",  # .dotx
+}
+
 
 @router.post("/upload", response_model=CourseOut)
 async def upload_syllabus(file: UploadFile = File(...), db: Session = Depends(get_db)):
     """
-    Upload a syllabus PDF, run it through the extraction pipeline, and
-    persist the result as a Course with its Assignments.
+    Upload a syllabus (PDF, .docx, or .dotx), run it through the extraction
+    pipeline, and persist the result as a Course with its Assignments.
 
     v1: synchronous extraction. Real syllabi with ML-based extraction
     (once wired in) may be slow enough that this should become a background
     job with polling — noting that as a known future change, not fixing now.
+
+    Note: legacy .doc (pre-2007 binary format) is not supported — only
+    modern OOXML formats (.docx, .dotx) and PDF.
     """
-    if file.content_type != "application/pdf":
-        raise HTTPException(status_code=400, detail="Only PDF uploads are supported right now")
+    lower_name = file.filename.lower()
+    matches_extension = lower_name.endswith(".docx") or lower_name.endswith(".dotx")
+    if file.content_type not in ALLOWED_CONTENT_TYPES and not matches_extension:
+        raise HTTPException(
+            status_code=400,
+            detail="Only PDF, .docx, and .dotx uploads are supported right now",
+        )
 
     file_bytes = await file.read()
-    extracted = extract_syllabus(file_bytes, filename=file.filename)
+    extracted = extract_syllabus(file_bytes, filename=file.filename, content_type=file.content_type)
 
     course = Course(
         course_code=extracted.course_code,
