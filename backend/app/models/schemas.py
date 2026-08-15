@@ -1,0 +1,50 @@
+from datetime import date
+from enum import Enum
+
+from pydantic import BaseModel, Field
+
+
+class AssignmentType(str, Enum):
+    exam = "exam"
+    homework = "homework"
+    project = "project"
+    quiz = "quiz"
+    participation = "participation"
+    other = "other"
+
+
+class ExtractedAssignment(BaseModel):
+    """A single graded item pulled out of a syllabus."""
+
+    name: str
+    type: AssignmentType
+    weight_pct: float | None = Field(
+        default=None, description="Percent of final grade, e.g. 20.0 for 20%"
+    )
+    due_date: date | None = None
+    raw_source_text: str = Field(
+        description="The original syllabus text this was extracted from, for auditability"
+    )
+    confidence: float = Field(
+        ge=0.0, le=1.0, description="Extraction confidence, used to flag for human review"
+    )
+
+
+class GradingPolicy(BaseModel):
+    late_policy: str | None = None
+    grading_scale: dict[str, str] | None = Field(
+        default=None, description='e.g. {"A": "93-100", "A-": "90-92"}'
+    )
+
+
+class ExtractedSyllabus(BaseModel):
+    course_code: str | None = None
+    course_name: str | None = None
+    instructor: str | None = None
+    term: str | None = None
+    assignments: list[ExtractedAssignment] = Field(default_factory=list)
+    grading_policy: GradingPolicy | None = None
+    needs_review: bool = Field(
+        default=False,
+        description="True if any extracted field fell below the confidence threshold",
+    )
