@@ -1,0 +1,32 @@
+{
+  "source_file": "prose_grading_phys101.pdf",
+  "note": "Regression fixture for a real bug found in production: 'X is worth Y%' / 'X counts for Y%' phrasing (no colon) caused the name-capture regex to swallow filler words into the assignment name. Locks in the fix in rule_based_extraction.clean_extracted_name.",
+  "course_code": "PHYS 101",
+  "course_name": "Introduction to Physics",
+  "assignments": [
+    {
+      "name": "Recitation",
+      "type": "other",
+      "weight_pct": 10.0,
+      "due_date": null
+    },
+    {
+      "name": "Final Exam",
+      "type": "exam",
+      "weight_pct": 20.0,
+      "due_date": null
+    },
+    {
+      "name": "Attendance",
+      "type": "participation",
+      "weight_pct": 5.0,
+      "due_date": null
+    },
+    {
+      "name": "Homework",
+      "type": "homework",
+      "weight_pct": 10.0,
+      "due_date": null
+    }
+  ]
+}

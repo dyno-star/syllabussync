@@ -44,6 +44,28 @@ TYPE_KEYWORDS = {
     AssignmentType.participation: ["participation", "attendance"],
 }
 
+# Common phrasings like "Recitation is worth 10%" or "Attendance counts for 5%"
+# have no colon to anchor on, so WEIGHT_PATTERN's name group greedily captures
+# the whole run-on sentence fragment up to the number. This strips those known
+# filler phrases from the tail of a captured name after the fact, rather than
+# trying to make the regex itself smarter (which risks under-matching instead).
+NAME_FILLER_SUFFIXES = [
+    " is worth",
+    " are worth",
+    " counts for",
+    " accounts for",
+    " will be worth",
+    " weighs",
+    " is",
+]
+
+
+def clean_extracted_name(name: str) -> str:
+    for suffix in NAME_FILLER_SUFFIXES:
+        if name.lower().endswith(suffix):
+            return name[: -len(suffix)].strip()
+    return name.strip()
+
 
 def classify_type(name: str) -> AssignmentType:
     name_lower = name.lower()
@@ -62,7 +84,7 @@ def extract_weights(text: str) -> list[ExtractedAssignment]:
     """
     assignments = []
     for match in WEIGHT_PATTERN.finditer(text):
-        name = match.group("name").strip()
+        name = clean_extracted_name(match.group("name"))
         weight = float(match.group("weight"))
 
         # Filter out obvious false positives like "10% per day" late-policy lines
