@@ -22,32 +22,60 @@ export default function UploadView({ onUploaded, onCancel }) {
   }
 
   return (
-    <div className="card" style={{ padding: 32, maxWidth: 480 }}>
-      <p style={{ fontFamily: "var(--font-display)", fontSize: 20, margin: "0 0 4px" }}>
+    <div className="card" style={{ padding: 36, maxWidth: 480 }}>
+      <p
+        style={{
+          fontFamily: "var(--font-display)",
+          fontWeight: 600,
+          fontSize: 22,
+          margin: "0 0 6px",
+        }}
+      >
         Upload a syllabus
       </p>
-      <p style={{ color: "var(--ink-soft)", fontSize: 14, marginBottom: 20 }}>
+      <p style={{ color: "var(--card-text-muted)", fontSize: 14, marginBottom: 22, lineHeight: 1.5 }}>
         PDF or Word (.docx, .dotx). Extraction runs automatically — you'll be able to
         fix anything it gets wrong on the next screen.
       </p>
 
       <form onSubmit={handleSubmit}>
-        <input
-          type="file"
-          accept="application/pdf,.docx,.dotx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.wordprocessingml.template"
-          onChange={(e) => setFile(e.target.files[0])}
-          style={{ marginBottom: 16, fontFamily: "var(--font-mono)", fontSize: 13 }}
-        />
+        <div
+          style={{
+            border: `1px dashed var(--card-line)`,
+            borderRadius: "var(--radius)",
+            padding: 20,
+            marginBottom: 18,
+            background: "var(--card-raised)",
+          }}
+        >
+          <input
+            type="file"
+            accept="application/pdf,.docx,.dotx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.wordprocessingml.template"
+            onChange={(e) => setFile(e.target.files[0])}
+            style={{ fontFamily: "var(--font-mono)", fontSize: 13, width: "100%" }}
+          />
+        </div>
 
         {error && (
-          <p style={{ color: "var(--coral)", fontSize: 13, marginBottom: 12 }}>{error}</p>
+          <p
+            style={{
+              color: "var(--stamp-red)",
+              fontSize: 13,
+              marginBottom: 14,
+              padding: "8px 12px",
+              background: "var(--stamp-red-soft)",
+              borderRadius: "var(--radius)",
+            }}
+          >
+            {error}
+          </p>
         )}
 
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 10 }}>
           <button type="submit" className="btn" disabled={!file || loading}>
             {loading ? "Extracting…" : "Upload"}
           </button>
-          <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={loading}>
+          <button type="button" className="btn btn-ghost-card" onClick={onCancel} disabled={loading}>
             Cancel
           </button>
         </div>

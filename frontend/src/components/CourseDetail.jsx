@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "../api";
+import Stamp from "./Stamp";
 
 const ASSIGNMENT_TYPES = ["exam", "homework", "project", "quiz", "participation", "other"];
 
@@ -31,8 +32,8 @@ function AssignmentRow({ assignment, courseId, onUpdated }) {
 
   if (editing) {
     return (
-      <tr>
-        <td>
+      <tr style={{ background: "var(--card-raised)" }}>
+        <td style={{ padding: "10px 12px" }}>
           <input
             type="text"
             value={draft.name}
@@ -40,7 +41,7 @@ function AssignmentRow({ assignment, courseId, onUpdated }) {
             style={{ width: "100%" }}
           />
         </td>
-        <td>
+        <td style={{ padding: "10px 12px" }}>
           <select value={draft.type} onChange={(e) => setDraft({ ...draft, type: e.target.value })}>
             {ASSIGNMENT_TYPES.map((t) => (
               <option key={t} value={t}>
@@ -49,7 +50,7 @@ function AssignmentRow({ assignment, courseId, onUpdated }) {
             ))}
           </select>
         </td>
-        <td>
+        <td style={{ padding: "10px 12px" }}>
           <input
             type="number"
             step="0.1"
@@ -58,20 +59,20 @@ function AssignmentRow({ assignment, courseId, onUpdated }) {
             style={{ width: 70 }}
           />
         </td>
-        <td>
+        <td style={{ padding: "10px 12px" }}>
           <input
             type="date"
             value={draft.due_date}
             onChange={(e) => setDraft({ ...draft, due_date: e.target.value })}
           />
         </td>
-        <td>
-          <button className="btn" style={{ padding: "4px 10px", fontSize: 12 }} onClick={save} disabled={saving}>
+        <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+          <button className="btn" style={{ padding: "5px 12px", fontSize: 12 }} onClick={save} disabled={saving}>
             {saving ? "…" : "Save"}
           </button>
           <button
-            className="btn btn-ghost"
-            style={{ padding: "4px 10px", fontSize: 12, marginLeft: 6 }}
+            className="btn btn-ghost-card"
+            style={{ padding: "5px 12px", fontSize: 12, marginLeft: 6 }}
             onClick={() => setEditing(false)}
           >
             Cancel
@@ -82,18 +83,18 @@ function AssignmentRow({ assignment, courseId, onUpdated }) {
   }
 
   return (
-    <tr>
-      <td>{assignment.name}</td>
-      <td style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--ink-soft)" }}>
+    <tr style={{ borderTop: "1px solid var(--card-line)" }}>
+      <td style={{ padding: "12px" }}>{assignment.name}</td>
+      <td style={{ padding: "12px", fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--card-text-muted)" }}>
         {assignment.type}
       </td>
-      <td style={{ fontFamily: "var(--font-mono)" }}>
+      <td style={{ padding: "12px", fontFamily: "var(--font-mono)" }}>
         {assignment.weight_pct != null ? `${assignment.weight_pct}%` : "—"}
       </td>
-      <td style={{ fontFamily: "var(--font-mono)", fontSize: 13 }}>
+      <td style={{ padding: "12px", fontFamily: "var(--font-mono)", fontSize: 13 }}>
         {assignment.due_date || "—"}
       </td>
-      <td>
+      <td style={{ padding: "12px", whiteSpace: "nowrap" }}>
         {assignment.human_corrected && (
           <span className="badge badge-ok" style={{ marginRight: 8 }}>
             Corrected
@@ -105,8 +106,8 @@ function AssignmentRow({ assignment, courseId, onUpdated }) {
           </span>
         )}
         <button
-          className="btn btn-ghost"
-          style={{ padding: "4px 10px", fontSize: 12 }}
+          className="btn btn-ghost-card"
+          style={{ padding: "5px 12px", fontSize: 12 }}
           onClick={() => setEditing(true)}
         >
           Edit
@@ -133,19 +134,22 @@ function GradeSimulator({ assignments }) {
   }, 0);
 
   return (
-    <div className="card" style={{ padding: 20, marginTop: 24 }}>
-      <p style={{ fontFamily: "var(--font-display)", fontSize: 17, margin: "0 0 4px" }}>
+    <div className="card" style={{ padding: 24, marginTop: 20 }}>
+      <p style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: 19, margin: "0 0 4px" }}>
         Grade simulator
       </p>
-      <p style={{ color: "var(--ink-soft)", fontSize: 13, marginBottom: 16 }}>
+      <p style={{ color: "var(--card-text-muted)", fontSize: 13, marginBottom: 18 }}>
         Enter a score for any assignment to see how it affects your total.
       </p>
 
-      <div style={{ display: "grid", gap: 8 }}>
+      <div style={{ display: "grid", gap: 10 }}>
         {assignments.map((a) => (
           <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <span style={{ flex: 1, fontSize: 14 }}>
-              {a.name} <span style={{ color: "var(--ink-soft)", fontSize: 12 }}>({a.weight_pct ?? "?"}%)</span>
+              {a.name}{" "}
+              <span style={{ color: "var(--card-text-muted)", fontSize: 12, fontFamily: "var(--font-mono)" }}>
+                ({a.weight_pct ?? "?"}%)
+              </span>
             </span>
             <input
               type="number"
@@ -154,7 +158,7 @@ function GradeSimulator({ assignments }) {
               max="100"
               value={scores[a.id] ?? ""}
               onChange={(e) => setScores({ ...scores, [a.id]: e.target.value })}
-              style={{ width: 90 }}
+              style={{ width: 92 }}
             />
           </div>
         ))}
@@ -162,15 +166,16 @@ function GradeSimulator({ assignments }) {
 
       <div
         style={{
-          marginTop: 16,
-          paddingTop: 16,
-          borderTop: "1px solid var(--line)",
+          marginTop: 18,
+          paddingTop: 18,
+          borderTop: "1px solid var(--card-line)",
           fontFamily: "var(--font-mono)",
           fontSize: 14,
         }}
       >
-        Current weighted grade: <strong>{currentGrade.toFixed(1)}%</strong>{" "}
-        <span style={{ color: "var(--ink-soft)", fontSize: 12 }}>
+        Current weighted grade:{" "}
+        <strong style={{ fontSize: 16 }}>{currentGrade.toFixed(1)}%</strong>{" "}
+        <span style={{ color: "var(--card-text-muted)", fontSize: 12 }}>
           (based on {enteredWeight}% of {totalWeight}% total weight entered)
         </span>
       </div>
@@ -188,20 +193,37 @@ export default function CourseDetail({ course, onUpdated, onBack, onDelete }) {
 
   return (
     <div>
-      <button className="btn btn-ghost" style={{ marginBottom: 16 }} onClick={onBack}>
+      <button className="btn btn-ghost" style={{ marginBottom: 20 }} onClick={onBack}>
         ← All courses
       </button>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
         <div>
-          <h1 style={{ fontFamily: "var(--font-display)", fontSize: 28, margin: "0 0 4px" }}>
+          <h1
+            style={{
+              fontFamily: "var(--font-display)",
+              fontWeight: 700,
+              fontSize: 32,
+              margin: "0 0 4px",
+              color: "var(--paper-text)",
+            }}
+          >
             {course.course_code || "Untitled course"}
           </h1>
           {course.course_name && (
-            <p style={{ color: "var(--ink-soft)", margin: 0 }}>{course.course_name}</p>
+            <p style={{ color: "var(--paper-text-muted)", margin: 0, fontSize: 16 }}>
+              {course.course_name}
+            </p>
           )}
           {course.instructor && (
-            <p style={{ color: "var(--ink-soft)", fontSize: 13, margin: "4px 0 0" }}>
+            <p
+              style={{
+                color: "var(--paper-text-muted)",
+                fontSize: 13,
+                margin: "6px 0 0",
+                fontFamily: "var(--font-mono)",
+              }}
+            >
               {course.instructor} {course.term && `· ${course.term}`}
             </p>
           )}
@@ -215,36 +237,39 @@ export default function CourseDetail({ course, onUpdated, onBack, onDelete }) {
         <div
           className="card"
           style={{
-            marginTop: 16,
-            padding: 12,
-            background: "var(--coral-soft)",
-            border: "1px solid var(--coral)",
-            fontSize: 13,
-            color: "var(--coral)",
+            marginTop: 20,
+            padding: "16px 20px",
+            display: "flex",
+            alignItems: "center",
+            gap: 18,
+            borderColor: "var(--stamp-red)",
           }}
         >
-          Extraction flagged this syllabus for review. Check the assignments below
-          for anything missing or wrong before trusting the deadlines.
+          <Stamp label="Needs review" variant="review" animate />
+          <p style={{ margin: 0, fontSize: 13, color: "var(--card-text)", lineHeight: 1.5 }}>
+            Extraction flagged this syllabus for review. Check the assignments
+            below for anything missing or wrong before trusting the deadlines.
+          </p>
         </div>
       )}
 
-      <div className="card" style={{ marginTop: 20, overflow: "hidden" }}>
+      <div className="card" style={{ marginTop: 24, overflow: "hidden" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
           <thead>
-            <tr style={{ background: "var(--paper)", textAlign: "left" }}>
-              <th style={{ padding: "10px 12px" }}>Assignment</th>
-              <th style={{ padding: "10px 12px" }}>Type</th>
-              <th style={{ padding: "10px 12px" }}>Weight</th>
-              <th style={{ padding: "10px 12px" }}>Due date</th>
-              <th style={{ padding: "10px 12px" }}></th>
+            <tr style={{ background: "var(--card-raised)", textAlign: "left" }}>
+              <th style={{ padding: "12px", fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--card-text-muted)" }}>Assignment</th>
+              <th style={{ padding: "12px", fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--card-text-muted)" }}>Type</th>
+              <th style={{ padding: "12px", fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--card-text-muted)" }}>Weight</th>
+              <th style={{ padding: "12px", fontFamily: "var(--font-mono)", fontSize: 11, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--card-text-muted)" }}>Due date</th>
+              <th style={{ padding: "12px" }}></th>
             </tr>
           </thead>
           <tbody>
             {course.assignments.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ padding: 20, textAlign: "center", color: "var(--ink-soft)" }}>
-                  Nothing was extracted from this syllabus. Add assignments manually
-                  isn't supported yet — try re-uploading a clearer PDF.
+                <td colSpan={5} style={{ padding: 28, textAlign: "center", color: "var(--card-text-muted)" }}>
+                  Nothing was extracted from this syllabus. Manually adding
+                  assignments isn't supported yet — try re-uploading a clearer file.
                 </td>
               </tr>
             ) : (
