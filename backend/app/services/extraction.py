@@ -15,8 +15,7 @@ the regex baseline, not alongside it without comparison):
 """
 
 from app.models.schemas import ExtractedSyllabus
-from app.services.docx_parser import extract_text as extract_docx_text
-from app.services.pdf_parser import extract_text as extract_pdf_text
+from app.services.pdf_parser import extract_text
 from app.services.rule_based_extraction import (
     extract_dates,
     extract_weights,
@@ -27,22 +26,13 @@ from app.services.rule_based_extraction import (
 # than silently showing possibly-wrong data.
 REVIEW_THRESHOLD = 0.7
 
-DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-DOTX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.template"
 
-
-def extract_syllabus(file_bytes: bytes, filename: str, content_type: str = "") -> ExtractedSyllabus:
-    is_docx = content_type == DOCX_CONTENT_TYPE or filename.lower().endswith(".docx")
-    is_dotx = content_type == DOTX_CONTENT_TYPE or filename.lower().endswith(".dotx")
-
+def extract_syllabus(file_bytes: bytes, filename: str) -> ExtractedSyllabus:
     try:
-        if is_docx or is_dotx:
-            text = extract_docx_text(file_bytes, is_template=is_dotx)
-        else:
-            text = extract_pdf_text(file_bytes)
+        text = extract_text(file_bytes)
     except ValueError:
-        # No extractable text (scanned PDF, corrupt file, etc.) — return an
-        # empty result flagged for review rather than crashing the request.
+        # No extractable text (likely scanned/image PDF) — return an empty
+        # result flagged for review rather than crashing the request.
         return ExtractedSyllabus(assignments=[], needs_review=True)
 
     assignments = extract_weights(text)

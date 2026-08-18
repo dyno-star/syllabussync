@@ -1,5 +1,5 @@
 {
-  "source_file": "civc101_real_syllabus.pdf",
+  "source_pdf": "civc101_real_syllabus.pdf",
   "note": "Real Drexel syllabus template (CIVC 101, Spring 2024). Grading is in points-out-of-100 embedded in prose headings, not 'Name: XX%' lines — the regex baseline is expected to score 0% here. This fixture exists specifically to demonstrate that gap and motivate the move to ML-based extraction (Table QA / Document QA / zero-shot classification).",
   "course_code": "CIVC 101",
   "course_name": "Introduction to Civic Engagement",
