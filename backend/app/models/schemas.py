@@ -80,6 +80,15 @@ class AssignmentUpdate(BaseModel):
     due_date: date | None = None
 
 
+class CourseUpdate(BaseModel):
+    """Fields a user can correct on the course itself (not its assignments)."""
+
+    course_code: str | None = None
+    course_name: str | None = None
+    instructor: str | None = None
+    term: str | None = None
+
+
 class CourseOut(BaseModel):
     id: str
     course_code: str | None
