@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator
@@ -87,6 +87,7 @@ class CourseOut(BaseModel):
     instructor: str | None
     term: str | None
     needs_review: bool
+    created_at: datetime
     assignments: list[AssignmentOut]
 
     @field_validator("id", mode="before")

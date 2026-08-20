@@ -1,5 +1,6 @@
-from sqlalchemy import Column, String, Float, Date, Boolean, ForeignKey, Text, Uuid
+from sqlalchemy import Column, String, Float, Date, DateTime, Boolean, ForeignKey, Text, Uuid
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 import uuid
 
 from app.db import Base
@@ -15,6 +16,7 @@ class Course(Base):
     term = Column(String, nullable=True)
     source_filename = Column(String, nullable=True)
     needs_review = Column(Boolean, default=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     assignments = relationship(
         "Assignment", back_populates="course", cascade="all, delete-orphan"
