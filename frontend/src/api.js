@@ -24,6 +24,14 @@ export const api = {
     return fetch(`${BASE}/courses/${id}`).then(handle);
   },
 
+  updateCourse(id, update) {
+    return fetch(`${BASE}/courses/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(update),
+    }).then(handle);
+  },
+
   deleteCourse(id) {
     return fetch(`${BASE}/courses/${id}`, { method: "DELETE" }).then(handle);
   },

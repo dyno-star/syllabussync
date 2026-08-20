@@ -5,7 +5,13 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.db import get_db
 from app.models.db_models import Course, Assignment
-from app.models.schemas import CourseOut, CourseSummary, AssignmentUpdate, AssignmentOut
+from app.models.schemas import (
+    CourseOut,
+    CourseSummary,
+    CourseUpdate,
+    AssignmentUpdate,
+    AssignmentOut,
+)
 
 router = APIRouter()
 
@@ -31,6 +37,26 @@ def get_course(course_id: UUID, db: Session = Depends(get_db)):
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
+    return course
+
+
+@router.patch("/{course_id}", response_model=CourseOut)
+def update_course(course_id: UUID, update: CourseUpdate, db: Session = Depends(get_db)):
+    """
+    Correct course-level fields (code, name, instructor, term) — the
+    header info extraction often misses, unlike assignments which have
+    their own dedicated correction endpoint below.
+    """
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    update_data = update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(course, field, value)
+
+    db.commit()
+    db.refresh(course)
     return course
 
 
