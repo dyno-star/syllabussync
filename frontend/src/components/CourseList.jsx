@@ -67,6 +67,9 @@ export default function CourseList({ courses, onSelectCourse, onUploadClick, loa
             </div>
           </div>
           {course.needs_review && <Stamp label="Needs review" variant="review" />}
+          {!course.needs_review && course.total_weight_pct > 0 && (
+            <Stamp label="Verified" variant="verified" />
+          )}
         </div>
       ))}
     </div>

@@ -191,6 +191,12 @@ export default function CourseDetail({ course, onUpdated, onBack, onDelete }) {
     });
   }
 
+  // "Verified" is earned, not default: a course only gets the brass stamp once
+  // it actually has assignments AND nothing is flagged for review. An empty
+  // syllabus with needs_review=false (shouldn't happen, but defensively) does
+  // not count as verified — there's nothing to verify.
+  const isVerified = !course.needs_review && course.assignments.length > 0;
+
   return (
     <div>
       <button className="btn btn-ghost" style={{ marginBottom: 20 }} onClick={onBack}>
@@ -249,6 +255,25 @@ export default function CourseDetail({ course, onUpdated, onBack, onDelete }) {
           <p style={{ margin: 0, fontSize: 13, color: "var(--card-text)", lineHeight: 1.5 }}>
             Extraction flagged this syllabus for review. Check the assignments
             below for anything missing or wrong before trusting the deadlines.
+          </p>
+        </div>
+      )}
+
+      {isVerified && (
+        <div
+          className="card"
+          style={{
+            marginTop: 20,
+            padding: "16px 20px",
+            display: "flex",
+            alignItems: "center",
+            gap: 18,
+            borderColor: "var(--brass)",
+          }}
+        >
+          <Stamp label="Verified" variant="verified" animate />
+          <p style={{ margin: 0, fontSize: 13, color: "var(--card-text)", lineHeight: 1.5 }}>
+            Every assignment extracted cleanly — no fields needed correction.
           </p>
         </div>
       )}
