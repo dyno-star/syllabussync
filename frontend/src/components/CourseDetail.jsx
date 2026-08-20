@@ -4,6 +4,15 @@ import Stamp from "./Stamp";
 
 const ASSIGNMENT_TYPES = ["exam", "homework", "project", "quiz", "participation", "other"];
 
+function formatFiledDate(isoString) {
+  if (!isoString) return "date unknown";
+  const d = new Date(isoString);
+  const day = d.getDate();
+  const month = d.toLocaleString("en-US", { month: "short" }).toUpperCase();
+  const year = d.getFullYear();
+  return `${day} ${month} ${year}`;
+}
+
 function AssignmentRow({ assignment, courseId, onUpdated }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({
@@ -233,6 +242,19 @@ export default function CourseDetail({ course, onUpdated, onBack, onDelete }) {
               {course.instructor} {course.term && `· ${course.term}`}
             </p>
           )}
+          <p
+            style={{
+              color: "var(--paper-text-muted)",
+              fontSize: 11,
+              margin: "10px 0 0",
+              fontFamily: "var(--font-mono)",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              opacity: 0.7,
+            }}
+          >
+            Filed {formatFiledDate(course.created_at)}
+          </p>
         </div>
         <button className="btn btn-danger" onClick={onDelete}>
           Delete course
