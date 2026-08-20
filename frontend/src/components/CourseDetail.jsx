@@ -192,6 +192,147 @@ function GradeSimulator({ assignments }) {
   );
 }
 
+function CourseHeader({ course, onUpdated }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState({
+    course_code: course.course_code || "",
+    course_name: course.course_name || "",
+    instructor: course.instructor || "",
+    term: course.term || "",
+  });
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    setSaving(true);
+    try {
+      // Send empty strings as null so a cleared field actually clears
+      // rather than getting stored as "".
+      const payload = Object.fromEntries(
+        Object.entries(draft).map(([k, v]) => [k, v.trim() === "" ? null : v.trim()])
+      );
+      const updated = await api.updateCourse(course.id, payload);
+      onUpdated({ ...course, ...updated });
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="card" style={{ padding: 20, display: "grid", gap: 10, maxWidth: 460 }}>
+        <label style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--card-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          Course code
+          <input
+            type="text"
+            value={draft.course_code}
+            onChange={(e) => setDraft({ ...draft, course_code: e.target.value })}
+            placeholder="e.g. CS 260"
+            style={{ display: "block", width: "100%", marginTop: 4 }}
+          />
+        </label>
+        <label style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--card-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          Course name
+          <input
+            type="text"
+            value={draft.course_name}
+            onChange={(e) => setDraft({ ...draft, course_name: e.target.value })}
+            placeholder="e.g. Data Structures and Algorithms"
+            style={{ display: "block", width: "100%", marginTop: 4 }}
+          />
+        </label>
+        <div style={{ display: "flex", gap: 10 }}>
+          <label style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--card-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", flex: 1 }}>
+            Instructor
+            <input
+              type="text"
+              value={draft.instructor}
+              onChange={(e) => setDraft({ ...draft, instructor: e.target.value })}
+              style={{ display: "block", width: "100%", marginTop: 4 }}
+            />
+          </label>
+          <label style={{ fontSize: 11, fontFamily: "var(--font-mono)", color: "var(--card-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", flex: 1 }}>
+            Term
+            <input
+              type="text"
+              value={draft.term}
+              onChange={(e) => setDraft({ ...draft, term: e.target.value })}
+              placeholder="e.g. Fall 2026"
+              style={{ display: "block", width: "100%", marginTop: 4 }}
+            />
+          </label>
+        </div>
+        <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+          <button className="btn" style={{ padding: "6px 14px", fontSize: 13 }} onClick={save} disabled={saving}>
+            {saving ? "Saving…" : "Save"}
+          </button>
+          <button
+            className="btn btn-ghost-card"
+            style={{ padding: "6px 14px", fontSize: 13 }}
+            onClick={() => setEditing(false)}
+            disabled={saving}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h1
+        style={{
+          fontFamily: "var(--font-display)",
+          fontWeight: 700,
+          fontSize: 32,
+          margin: "0 0 4px",
+          color: "var(--paper-text)",
+        }}
+      >
+        {course.course_code || "Untitled course"}
+      </h1>
+      {course.course_name && (
+        <p style={{ color: "var(--paper-text-muted)", margin: 0, fontSize: 16 }}>
+          {course.course_name}
+        </p>
+      )}
+      {course.instructor && (
+        <p
+          style={{
+            color: "var(--paper-text-muted)",
+            fontSize: 13,
+            margin: "6px 0 0",
+            fontFamily: "var(--font-mono)",
+          }}
+        >
+          {course.instructor} {course.term && `· ${course.term}`}
+        </p>
+      )}
+      <p
+        style={{
+          color: "var(--paper-text-muted)",
+          fontSize: 11,
+          margin: "10px 0 0",
+          fontFamily: "var(--font-mono)",
+          letterSpacing: "0.06em",
+          textTransform: "uppercase",
+          opacity: 0.7,
+        }}
+      >
+        Filed {formatFiledDate(course.created_at)}
+      </p>
+      <button
+        className="btn btn-ghost"
+        style={{ padding: "4px 12px", fontSize: 12, marginTop: 12 }}
+        onClick={() => setEditing(true)}
+      >
+        Edit course info
+      </button>
+    </div>
+  );
+}
+
 export default function CourseDetail({ course, onUpdated, onBack, onDelete }) {
   function handleAssignmentUpdated(updated) {
     onUpdated({
@@ -213,49 +354,7 @@ export default function CourseDetail({ course, onUpdated, onBack, onDelete }) {
       </button>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
-        <div>
-          <h1
-            style={{
-              fontFamily: "var(--font-display)",
-              fontWeight: 700,
-              fontSize: 32,
-              margin: "0 0 4px",
-              color: "var(--paper-text)",
-            }}
-          >
-            {course.course_code || "Untitled course"}
-          </h1>
-          {course.course_name && (
-            <p style={{ color: "var(--paper-text-muted)", margin: 0, fontSize: 16 }}>
-              {course.course_name}
-            </p>
-          )}
-          {course.instructor && (
-            <p
-              style={{
-                color: "var(--paper-text-muted)",
-                fontSize: 13,
-                margin: "6px 0 0",
-                fontFamily: "var(--font-mono)",
-              }}
-            >
-              {course.instructor} {course.term && `· ${course.term}`}
-            </p>
-          )}
-          <p
-            style={{
-              color: "var(--paper-text-muted)",
-              fontSize: 11,
-              margin: "10px 0 0",
-              fontFamily: "var(--font-mono)",
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              opacity: 0.7,
-            }}
-          >
-            Filed {formatFiledDate(course.created_at)}
-          </p>
-        </div>
+        <CourseHeader course={course} onUpdated={onUpdated} />
         <button className="btn btn-danger" onClick={onDelete}>
           Delete course
         </button>
