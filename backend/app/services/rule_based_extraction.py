@@ -16,10 +16,17 @@ Known limitations (expected — this is why we'll layer in ML models next):
 - No confidence scoring beyond "did the regex match"
 """
 
+import os
 import re
 from datetime import date, datetime
 
 from app.models.schemas import AssignmentType, ExtractedAssignment
+
+# Zero-shot classification (via transformers) is opt-in, not default: it
+# pulls in torch + a ~1.6GB model download, which is a heavy default for
+# anyone just running the regex baseline or the eval harness in CI. Set
+# SYLLABUSSYNC_USE_ZERO_SHOT=1 to enable it.
+USE_ZERO_SHOT_CLASSIFIER = os.environ.get("SYLLABUSSYNC_USE_ZERO_SHOT") == "1"
 
 # Matches lines like "Midterm Exam: 25%" or "Homework Assignments 20%".
 # The name group excludes newlines explicitly (not just via non-greedy
@@ -44,6 +51,28 @@ TYPE_KEYWORDS = {
     AssignmentType.participation: ["participation", "attendance"],
 }
 
+# Common phrasings like "Recitation is worth 10%" or "Attendance counts for 5%"
+# have no colon to anchor on, so WEIGHT_PATTERN's name group greedily captures
+# the whole run-on sentence fragment up to the number. This strips those known
+# filler phrases from the tail of a captured name after the fact, rather than
+# trying to make the regex itself smarter (which risks under-matching instead).
+NAME_FILLER_SUFFIXES = [
+    " is worth",
+    " are worth",
+    " counts for",
+    " accounts for",
+    " will be worth",
+    " weighs",
+    " is",
+]
+
+
+def clean_extracted_name(name: str) -> str:
+    for suffix in NAME_FILLER_SUFFIXES:
+        if name.lower().endswith(suffix):
+            return name[: -len(suffix)].strip()
+    return name.strip()
+
 
 def classify_type(name: str) -> AssignmentType:
     name_lower = name.lower()
@@ -56,27 +85,42 @@ def classify_type(name: str) -> AssignmentType:
 def extract_weights(text: str) -> list[ExtractedAssignment]:
     """
     Finds "Name: XX%" style lines and turns them into ExtractedAssignment
-    objects. Confidence is fixed low-ish (0.5) since regex matching this
-    pattern doesn't guarantee it's actually a grading-weight line vs. some
-    other percentage mentioned in the text (e.g. "10% late penalty").
+    objects.
+
+    Type classification and confidence: by default uses keyword matching
+    with a fixed 0.5 confidence (the original baseline — see module
+    docstring). If SYLLABUSSYNC_USE_ZERO_SHOT=1, uses a real NLI-based
+    zero-shot classifier instead, which also gives a real per-assignment
+    confidence score instead of the constant 0.5 — meaning needs_review
+    thresholding becomes meaningful for the type field specifically, not
+    just a placeholder. Weight/date extraction are unaffected either way;
+    this only changes how the *type* field and its confidence are derived.
     """
     assignments = []
     for match in WEIGHT_PATTERN.finditer(text):
-        name = match.group("name").strip()
+        name = clean_extracted_name(match.group("name"))
         weight = float(match.group("weight"))
 
         # Filter out obvious false positives like "10% per day" late-policy lines
         if "per day" in match.group(0).lower() or "late" in name.lower():
             continue
 
+        if USE_ZERO_SHOT_CLASSIFIER:
+            from app.services.zero_shot_classifier import classify_type_zero_shot
+
+            assignment_type, confidence = classify_type_zero_shot(name)
+        else:
+            assignment_type = classify_type(name)
+            confidence = 0.5
+
         assignments.append(
             ExtractedAssignment(
                 name=name,
-                type=classify_type(name),
+                type=assignment_type,
                 weight_pct=weight,
                 due_date=None,
                 raw_source_text=match.group(0).strip(),
-                confidence=0.5,
+                confidence=confidence,
             )
         )
     return assignments
