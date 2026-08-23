@@ -15,7 +15,11 @@ python-docx==1.1.2
 # Dev-only: used to generate synthetic test fixtures, not needed at runtime
 reportlab==4.2.5
 
-# Added incrementally as we build ML-based extraction
-# unstructured[pdf]==0.15.13
+# Optional: zero-shot assignment-type classification (see
+# app/services/zero_shot_classifier.py). NOT installed by default — these
+# are heavy (torch alone is 500MB+) and the classifier is opt-in via the
+# SYLLABUSSYNC_USE_ZERO_SHOT env var. Install separately if you want to use
+# it: pip install -r requirements-ml.txt
+#
 # transformers==4.44.2
 # torch==2.4.1

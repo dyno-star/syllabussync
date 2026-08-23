@@ -1,0 +1,10 @@
+# Optional dependencies for zero-shot assignment-type classification.
+# Install with: pip install -r requirements-ml.txt
+# Then set SYLLABUSSYNC_USE_ZERO_SHOT=1 to enable it in extraction.py.
+#
+# Not installed by default (see requirements.txt) because torch alone is
+# 500MB+ and the first classification call downloads a ~1.6GB model from
+# Hugging Face Hub.
+
+transformers==4.44.2
+torch==2.4.1
