@@ -71,3 +71,28 @@ def extract_text(file_bytes: bytes, is_template: bool = False) -> str:
         raise ValueError("No extractable text found in this Word document.")
 
     return full_text
+
+
+def extract_tables(file_bytes: bytes, is_template: bool = False) -> list[list[list[str]]]:
+    """
+    Extracts structured tables (rows/columns, not flattened text) from a
+    .docx or .dotx file. See pdf_parser.extract_tables() for why this
+    matters — flattening tables into "Name: Value" text lines (as
+    extract_text() does) loses which cells belong to which column, so a
+    header-aware reader can't tell "Weight" from "Due Date" once flattened.
+
+    Returns one list of rows per table, each row a list of cell strings
+    (empty string for empty cells — python-docx cells are never None,
+    unlike pdfplumber's).
+    """
+    if is_template:
+        file_bytes = _dotx_bytes_to_docx_bytes(file_bytes)
+
+    document = docx.Document(io.BytesIO(file_bytes))
+
+    tables: list[list[list[str]]] = []
+    for table in document.tables:
+        rows = [[cell.text.strip() for cell in row.cells] for row in table.rows]
+        tables.append(rows)
+
+    return tables
