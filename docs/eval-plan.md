@@ -42,3 +42,40 @@ The `needs_review` flag and per-field `confidence` score should be tuned so that
   review) as the safer trade-off early on
 
 This will become a precision/recall curve as more fixtures are added.
+
+## Zero-shot classification upgrade (in progress)
+
+The `type` field previously used pure keyword matching (`classify_type` in
+`rule_based_extraction.py`) with a hardcoded 0.5 confidence — meaning
+`needs_review` thresholding could never actually respond to type-confidence,
+since it was a constant. `app/services/zero_shot_classifier.py` replaces
+this with a real NLI-based zero-shot classifier (`facebook/bart-large-mnli`
+via Hugging Face transformers), giving genuine per-assignment confidence.
+
+**Status honestly:** this was built and integration-tested (see
+`tests/test_zero_shot_classifier.py`) in a sandboxed dev environment without
+network access to Hugging Face Hub. The tests prove the plumbing is
+correct — label mapping, confidence pass-through, the on/off toggle — using
+a stubbed pipeline, NOT real model inference. **No real accuracy number has
+been measured yet.** Whether this actually beats the 60% keyword baseline
+on `type_match` is still an open question.
+
+To find out for real:
+
+```bash
+pip install -r requirements-ml.txt
+SYLLABUSSYNC_USE_ZERO_SHOT=1 python -m app.eval.run_eval
+```
+
+Compare the `type_match` percentage against the baseline run
+(`python -m app.eval.run_eval` with the env var unset). Record both numbers
+here once measured — don't claim an improvement without the actual before/after.
+
+Known risk worth checking for specifically: assignment names are often
+short and generic ("Homework", "Project 1"), which may not give the NLI
+model much signal to work with — it's plausible the zero-shot classifier
+performs *worse* than keyword matching on names that are themselves already
+keyword-like. That would be a legitimate, useful finding, not a failure of
+the approach — it would tell us classification should use more context
+(the surrounding sentence, not just the isolated name) rather than the
+model choice being wrong.
