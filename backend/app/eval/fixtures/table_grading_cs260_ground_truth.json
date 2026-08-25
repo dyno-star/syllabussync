@@ -1,0 +1,26 @@
+{
+  "source_file": "table_grading_cs260.docx",
+  "note": "Real Word table (no header row) with grading weights — tests the structured-table extraction path (table_extraction.py) via the actual eval harness, not just a unit test. This is the first fixture where the table path should outperform the regex-on-text baseline.",
+  "course_code": null,
+  "course_name": null,
+  "assignments": [
+    {
+      "name": "Homework Assignments",
+      "type": "homework",
+      "weight_pct": 20.0,
+      "due_date": "2026-09-15"
+    },
+    {
+      "name": "Midterm Exam",
+      "type": "exam",
+      "weight_pct": 25.0,
+      "due_date": "2026-10-20"
+    },
+    {
+      "name": "Final Exam",
+      "type": "exam",
+      "weight_pct": 30.0,
+      "due_date": "2026-12-15"
+    }
+  ]
+}
