@@ -1,27 +1,48 @@
 """
 Syllabus extraction pipeline.
 
-Current status: PDF -> text (pdf_parser.py) -> regex-based weight/date
-extraction (rule_based_extraction.py) -> ExtractedSyllabus.
+Current status: PDF/docx -> text + structured tables -> assignments.
 
-This regex baseline is intentional — see rule_based_extraction.py for why.
-Next steps (each should be validated against app/eval/ before replacing
-the regex baseline, not alongside it without comparison):
+Two extraction paths, tried in order:
+  1. Structured tables (table_extraction.py) — tried first, since a
+     header-matched table cell is a stronger signal than a regex guess on
+     flattened prose. Used only if it actually finds something; an empty
+     result falls through to path 2 rather than being treated as "this
+     syllabus has zero assignments."
+  2. Regex-on-text (rule_based_extraction.py) — the original baseline,
+     used as a fallback for syllabi that put grading info in prose rather
+     than a real table (e.g. CIVC 101 — see app/eval/fixtures).
 
-  3. Table QA model over the grading table -> more robust weight extraction
-  4. Document QA / NER over the schedule section -> more robust date extraction
-  5. Zero-shot classification -> assignment type, replacing the keyword matcher
-  6. Real per-field confidence scoring instead of the fixed 0.5 placeholder
+Due-date extraction currently always runs against the flattened text
+(extract_dates), regardless of which path found the assignments — schedule
+sections with due dates are usually prose even when the grading breakdown
+itself is tabular, so there's no strong reason yet to duplicate date
+extraction into the table path too. Worth revisiting once we have a real
+fixture where that assumption breaks.
+
+Remaining roadmap (each should be validated against app/eval/ before
+replacing the current approach, not alongside it without comparison):
+
+  - Table QA model over tables the header-matcher can't parse (irregular
+    structure, no clean header row, merged cells)
+  - Document QA / NER over the schedule section -> more robust date
+    extraction (see the CIVC 101 schedule-table finding in docs/eval-plan.md)
+  - Zero-shot classification -> assignment type (built in
+    zero_shot_classifier.py, wired in behind SYLLABUSSYNC_USE_ZERO_SHOT,
+    but real accuracy vs. the keyword baseline is still unmeasured)
 """
 
 from app.models.schemas import ExtractedSyllabus
+from app.services.docx_parser import extract_tables as extract_docx_tables
 from app.services.docx_parser import extract_text as extract_docx_text
+from app.services.pdf_parser import extract_tables as extract_pdf_tables
 from app.services.pdf_parser import extract_text as extract_pdf_text
 from app.services.rule_based_extraction import (
     extract_dates,
     extract_weights,
     merge_dates_into_assignments,
 )
+from app.services.table_extraction import extract_assignments_from_tables
 
 # Below this confidence, we flag the whole syllabus for human review rather
 # than silently showing possibly-wrong data.
@@ -34,18 +55,24 @@ DOTX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessin
 def extract_syllabus(file_bytes: bytes, filename: str, content_type: str = "") -> ExtractedSyllabus:
     is_docx = content_type == DOCX_CONTENT_TYPE or filename.lower().endswith(".docx")
     is_dotx = content_type == DOTX_CONTENT_TYPE or filename.lower().endswith(".dotx")
+    is_word = is_docx or is_dotx
 
     try:
-        if is_docx or is_dotx:
+        if is_word:
             text = extract_docx_text(file_bytes, is_template=is_dotx)
+            tables = extract_docx_tables(file_bytes, is_template=is_dotx)
         else:
             text = extract_pdf_text(file_bytes)
+            tables = extract_pdf_tables(file_bytes)
     except ValueError:
         # No extractable text (scanned PDF, corrupt file, etc.) — return an
         # empty result flagged for review rather than crashing the request.
         return ExtractedSyllabus(assignments=[], needs_review=True)
 
-    assignments = extract_weights(text)
+    assignments = extract_assignments_from_tables(tables)
+    if not assignments:
+        assignments = extract_weights(text)
+
     dates = extract_dates(text)
     assignments = merge_dates_into_assignments(assignments, dates)
 
