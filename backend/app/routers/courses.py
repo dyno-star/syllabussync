@@ -11,9 +11,50 @@ from app.models.schemas import (
     CourseUpdate,
     AssignmentUpdate,
     AssignmentOut,
+    UpcomingAssignment,
 )
 
 router = APIRouter()
+
+
+@router.get("/upcoming", response_model=list[UpcomingAssignment])
+def list_upcoming_assignments(db: Session = Depends(get_db)):
+    """
+    Every assignment across every course that has a due date, sorted
+    soonest-first. This is the cross-course "what's coming up" view — the
+    original product pitch's "unified calendar across all your classes,"
+    which until now only existed per-course, not as a single combined list.
+
+    Deliberately placed above /{course_id} in route registration order:
+    FastAPI matches routes in the order they're added, and "/upcoming"
+    would otherwise be swallowed by the "/{course_id}" path parameter
+    (which would try to parse "upcoming" as a UUID and 422 instead of
+    reaching this handler). Route ordering here is load-bearing, not
+    stylistic — moving this below /{course_id} would silently break it.
+    """
+    assignments = (
+        db.query(Assignment)
+        .join(Course)
+        .filter(Assignment.due_date.isnot(None))
+        .options(joinedload(Assignment.course))
+        .order_by(Assignment.due_date.asc())
+        .all()
+    )
+
+    return [
+        UpcomingAssignment(
+            assignment_id=str(a.id),
+            course_id=str(a.course_id),
+            course_code=a.course.course_code,
+            course_name=a.course.course_name,
+            name=a.name,
+            type=a.type,
+            weight_pct=a.weight_pct,
+            due_date=a.due_date,
+            confidence=a.confidence,
+        )
+        for a in assignments
+    ]
 
 
 @router.get("/", response_model=list[CourseSummary])
@@ -42,11 +83,6 @@ def get_course(course_id: UUID, db: Session = Depends(get_db)):
 
 @router.patch("/{course_id}", response_model=CourseOut)
 def update_course(course_id: UUID, update: CourseUpdate, db: Session = Depends(get_db)):
-    """
-    Correct course-level fields (code, name, instructor, term) — the
-    header info extraction often misses, unlike assignments which have
-    their own dedicated correction endpoint below.
-    """
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
@@ -76,12 +112,6 @@ def correct_assignment(
     update: AssignmentUpdate,
     db: Session = Depends(get_db),
 ):
-    """
-    Human-in-the-loop correction: lets a user fix a wrong extraction.
-    Marks the assignment as human_corrected so we can later measure how
-    often extraction actually needed fixing — a real-world accuracy
-    signal beyond the eval fixture set.
-    """
     assignment = (
         db.query(Assignment)
         .filter(Assignment.id == assignment_id, Assignment.course_id == course_id)
