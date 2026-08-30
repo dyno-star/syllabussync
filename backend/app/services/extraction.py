@@ -1,42 +1,3 @@
-"""
-Syllabus extraction pipeline.
-
-Current status: PDF/docx -> text + structured tables -> assignments.
-
-Two extraction paths, tried in order:
-  1. Structured tables (table_extraction.py) — tried first, since a
-     header-matched table cell is a stronger signal than a regex guess on
-     flattened prose. Used only if it actually finds something; an empty
-     result falls through to path 2 rather than being treated as "this
-     syllabus has zero assignments."
-  1b. Table QA (table_qa.py, TAPAS) — opt-in via SYLLABUSSYNC_USE_TABLE_QA,
-      tried on any table path 1 couldn't parse, before falling through to
-      regex. See table_qa.py's module docstring for why this is unmeasured
-      (no network access to Hugging Face Hub in the sandbox these commits
-      were authored in).
-  2. Regex-on-text (rule_based_extraction.py) — the original baseline,
-     used as a fallback for syllabi that put grading info in prose rather
-     than a real table (e.g. CIVC 101 — see app/eval/fixtures).
-
-Due-date extraction currently always runs against the flattened text
-(extract_dates), regardless of which path found the assignments — schedule
-sections with due dates are usually prose even when the grading breakdown
-itself is tabular, so there's no strong reason yet to duplicate date
-extraction into the table path too. Worth revisiting once we have a real
-fixture where that assumption breaks.
-
-Remaining roadmap (each should be validated against app/eval/ before
-replacing the current approach, not alongside it without comparison):
-
-  - Table QA model over tables the header-matcher can't parse (irregular
-    structure, no clean header row, merged cells)
-  - Document QA / NER over the schedule section -> more robust date
-    extraction (see the CIVC 101 schedule-table finding in docs/eval-plan.md)
-  - Zero-shot classification -> assignment type (built in
-    zero_shot_classifier.py, wired in behind SYLLABUSSYNC_USE_ZERO_SHOT,
-    but real accuracy vs. the keyword baseline is still unmeasured)
-"""
-
 import os
 
 from app.models.schemas import ExtractedSyllabus
@@ -51,13 +12,14 @@ from app.services.rule_based_extraction import (
 )
 from app.services.table_extraction import extract_assignments_from_tables
 
-# Table QA (TAPAS) is opt-in for the same reason zero-shot classification
-# is: heavy deps (torch + a model download), not worth forcing on anyone
-# just running the deterministic baseline.
 USE_TABLE_QA = os.environ.get("SYLLABUSSYNC_USE_TABLE_QA") == "1"
+USE_DOCUMENT_QA = os.environ.get("SYLLABUSSYNC_USE_DOCUMENT_QA") == "1"
 
-# Below this confidence, we flag the whole syllabus for human review rather
-# than silently showing possibly-wrong data.
+# Extractive QA's own confidence needs to actually clear this bar to be
+# trusted over "just leave it blank" — an answer the model itself wasn't
+# confident about isn't better than no answer.
+DOCUMENT_QA_MIN_CONFIDENCE = 0.3
+
 REVIEW_THRESHOLD = 0.7
 
 DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -77,8 +39,6 @@ def extract_syllabus(file_bytes: bytes, filename: str, content_type: str = "") -
             text = extract_pdf_text(file_bytes)
             tables = extract_pdf_tables(file_bytes)
     except ValueError:
-        # No extractable text (scanned PDF, corrupt file, etc.) — return an
-        # empty result flagged for review rather than crashing the request.
         return ExtractedSyllabus(assignments=[], needs_review=True)
 
     assignments = extract_assignments_from_tables(tables)
@@ -96,6 +56,17 @@ def extract_syllabus(file_bytes: bytes, filename: str, content_type: str = "") -
 
     dates = extract_dates(text)
     assignments = merge_dates_into_assignments(assignments, dates)
+
+    if USE_DOCUMENT_QA:
+        from app.services.document_qa import find_due_date_via_qa
+
+        for assignment in assignments:
+            if assignment.due_date is not None:
+                continue
+            found_date, confidence = find_due_date_via_qa(assignment.name, text)
+            if found_date is not None and confidence >= DOCUMENT_QA_MIN_CONFIDENCE:
+                assignment.due_date = found_date
+                assignment.raw_source_text += f" | due date via QA (confidence={confidence:.2f})"
 
     needs_review = (
         len(assignments) == 0
