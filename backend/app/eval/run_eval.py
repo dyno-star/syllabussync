@@ -20,16 +20,19 @@ FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
 def load_fixture_pairs() -> list[tuple[Path, Path]]:
-    """Finds every (pdf, ground_truth.json) pair in the fixtures dir."""
+    """Finds every (source_file, ground_truth.json) pair in the fixtures dir."""
     pairs = []
     for gt_path in FIXTURES_DIR.glob("*_ground_truth.json"):
         with open(gt_path) as f:
             gt = json.load(f)
-        pdf_path = FIXTURES_DIR / gt["source_pdf"]
-        if pdf_path.exists():
-            pairs.append((pdf_path, gt_path))
+        # "source_file" is the current field name; "source_pdf" is kept as a
+        # fallback for older fixtures written before we supported docx/dotx.
+        source_name = gt.get("source_file") or gt.get("source_pdf")
+        source_path = FIXTURES_DIR / source_name
+        if source_path.exists():
+            pairs.append((source_path, gt_path))
         else:
-            print(f"WARNING: {gt_path.name} references missing PDF {gt['source_pdf']}")
+            print(f"WARNING: {gt_path.name} references missing file {source_name}")
     return pairs
 
 
@@ -52,23 +55,23 @@ def run():
     totals = {"name_match": 0, "type_match": 0, "weight_match": 0, "date_match": 0}
     total_assignments = 0
 
-    for pdf_path, gt_path in pairs:
+    for source_path, gt_path in pairs:
         with open(gt_path) as f:
             gt = json.load(f)
 
-        with open(pdf_path, "rb") as f:
+        with open(source_path, "rb") as f:
             file_bytes = f.read()
 
-        result = extract_syllabus(file_bytes, pdf_path.name)
+        result = extract_syllabus(file_bytes, source_path.name)
         predicted_assignments = [a.model_dump(mode="json") for a in result.assignments]
         expected_assignments = gt["assignments"]
 
-        print(f"\n{pdf_path.name}: predicted {len(predicted_assignments)}, "
+        print(f"\n{source_path.name}: predicted {len(predicted_assignments)}, "
               f"expected {len(expected_assignments)} assignments")
 
-        # Naive matching by list position — fine for now since our single
-        # fixture's assignments come back in source order. Once we have
-        # fixtures with reordering issues, switch to name-based matching.
+        # Naive matching by list position — fine for now since our fixtures'
+        # assignments come back in source order. Once we have fixtures with
+        # reordering issues, switch to name-based matching.
         #
         # Important: if predicted is shorter than expected (e.g. extraction
         # found nothing), those missing expected items must still count as
