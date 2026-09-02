@@ -24,6 +24,10 @@ export const api = {
     return fetch(`${BASE}/courses/${id}`).then(handle);
   },
 
+  getUpcomingAssignments() {
+    return fetch(`${BASE}/courses/upcoming`).then(handle);
+  },
+
   updateCourse(id, update) {
     return fetch(`${BASE}/courses/${id}`, {
       method: "PATCH",
