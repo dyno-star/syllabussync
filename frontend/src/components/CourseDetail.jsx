@@ -126,6 +126,96 @@ function AssignmentRow({ assignment, courseId, onUpdated }) {
   );
 }
 
+function AddAssignmentRow({ courseId, onAdded, onCancel }) {
+  const [draft, setDraft] = useState({
+    name: "",
+    type: "homework",
+    weight_pct: "",
+    due_date: "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  async function save() {
+    if (!draft.name.trim()) {
+      setError("Name is required");
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const created = await api.createAssignment(courseId, {
+        name: draft.name.trim(),
+        type: draft.type,
+        weight_pct: draft.weight_pct === "" ? null : parseFloat(draft.weight_pct),
+        due_date: draft.due_date === "" ? null : draft.due_date,
+      });
+      onAdded(created);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <tr style={{ background: "var(--card-raised)", borderTop: "1px solid var(--card-line)" }}>
+      <td style={{ padding: "10px 12px" }}>
+        <input
+          type="text"
+          placeholder="Assignment name"
+          value={draft.name}
+          onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+          style={{ width: "100%" }}
+          autoFocus
+        />
+        {error && (
+          <div style={{ color: "var(--stamp-red)", fontSize: 11, marginTop: 4 }}>{error}</div>
+        )}
+      </td>
+      <td style={{ padding: "10px 12px" }}>
+        <select value={draft.type} onChange={(e) => setDraft({ ...draft, type: e.target.value })}>
+          {ASSIGNMENT_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+      </td>
+      <td style={{ padding: "10px 12px" }}>
+        <input
+          type="number"
+          step="0.1"
+          placeholder="%"
+          value={draft.weight_pct}
+          onChange={(e) => setDraft({ ...draft, weight_pct: e.target.value })}
+          style={{ width: 70 }}
+        />
+      </td>
+      <td style={{ padding: "10px 12px" }}>
+        <input
+          type="date"
+          value={draft.due_date}
+          onChange={(e) => setDraft({ ...draft, due_date: e.target.value })}
+        />
+      </td>
+      <td style={{ padding: "10px 12px", whiteSpace: "nowrap" }}>
+        <button className="btn" style={{ padding: "5px 12px", fontSize: 12 }} onClick={save} disabled={saving}>
+          {saving ? "…" : "Add"}
+        </button>
+        <button
+          className="btn btn-ghost-card"
+          style={{ padding: "5px 12px", fontSize: 12, marginLeft: 6 }}
+          onClick={onCancel}
+          disabled={saving}
+        >
+          Cancel
+        </button>
+      </td>
+    </tr>
+  );
+}
+
 function GradeSimulator({ assignments }) {
   const [scores, setScores] = useState({});
 
@@ -205,8 +295,6 @@ function CourseHeader({ course, onUpdated }) {
   async function save() {
     setSaving(true);
     try {
-      // Send empty strings as null so a cleared field actually clears
-      // rather than getting stored as "".
       const payload = Object.fromEntries(
         Object.entries(draft).map(([k, v]) => [k, v.trim() === "" ? null : v.trim()])
       );
@@ -334,11 +422,24 @@ function CourseHeader({ course, onUpdated }) {
 }
 
 export default function CourseDetail({ course, onUpdated, onBack, onDelete }) {
+  const [addingAssignment, setAddingAssignment] = useState(false);
+
   function handleAssignmentUpdated(updated) {
     onUpdated({
       ...course,
       assignments: course.assignments.map((a) => (a.id === updated.id ? updated : a)),
     });
+  }
+
+  async function handleAssignmentAdded() {
+    // Refetch rather than splice the new assignment in locally and guess
+    // at needs_review — the backend recomputes needs_review across every
+    // assignment on the course (see courses.py's create_assignment), and
+    // guessing that value here risks it silently drifting out of sync with
+    // what the server actually decided.
+    const refreshed = await api.getCourse(course.id);
+    onUpdated(refreshed);
+    setAddingAssignment(false);
   }
 
   // "Verified" is earned, not default: a course only gets the brass stamp once
@@ -411,11 +512,11 @@ export default function CourseDetail({ course, onUpdated, onBack, onDelete }) {
             </tr>
           </thead>
           <tbody>
-            {course.assignments.length === 0 ? (
+            {course.assignments.length === 0 && !addingAssignment ? (
               <tr>
                 <td colSpan={5} style={{ padding: 28, textAlign: "center", color: "var(--card-text-muted)" }}>
-                  Nothing was extracted from this syllabus. Manually adding
-                  assignments isn't supported yet — try re-uploading a clearer file.
+                  Nothing was extracted from this syllabus. Add assignments manually below,
+                  or try re-uploading a clearer file.
                 </td>
               </tr>
             ) : (
@@ -428,8 +529,26 @@ export default function CourseDetail({ course, onUpdated, onBack, onDelete }) {
                 />
               ))
             )}
+            {addingAssignment && (
+              <AddAssignmentRow
+                courseId={course.id}
+                onAdded={handleAssignmentAdded}
+                onCancel={() => setAddingAssignment(false)}
+              />
+            )}
           </tbody>
         </table>
+        {!addingAssignment && (
+          <div style={{ padding: "12px", borderTop: "1px solid var(--card-line)" }}>
+            <button
+              className="btn btn-ghost-card"
+              style={{ padding: "6px 14px", fontSize: 13 }}
+              onClick={() => setAddingAssignment(true)}
+            >
+              + Add assignment
+            </button>
+          </div>
+        )}
       </div>
 
       {course.assignments.length > 0 && <GradeSimulator assignments={course.assignments} />}
