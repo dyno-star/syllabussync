@@ -65,6 +65,21 @@ class AssignmentUpdate(BaseModel):
     due_date: date | None = None
 
 
+class AssignmentCreate(BaseModel):
+    """
+    For manually adding an assignment a human typed in directly — as
+    opposed to one extraction produced. Name and type are required (there's
+    no reasonable default for either); weight and due date are optional
+    since a user might want to log "there's a final project" before they
+    know its exact weight or date yet.
+    """
+
+    name: str = Field(min_length=1)
+    type: AssignmentType
+    weight_pct: float | None = None
+    due_date: date | None = None
+
+
 class CourseUpdate(BaseModel):
     course_code: str | None = None
     course_name: str | None = None
