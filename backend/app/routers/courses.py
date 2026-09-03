@@ -10,9 +10,12 @@ from app.models.schemas import (
     CourseSummary,
     CourseUpdate,
     AssignmentUpdate,
+    AssignmentCreate,
     AssignmentOut,
     UpcomingAssignment,
 )
+
+from app.services.extraction import REVIEW_THRESHOLD
 
 router = APIRouter()
 
@@ -128,6 +131,48 @@ def correct_assignment(
 
     if update_data:
         assignment.human_corrected = True
+
+    db.commit()
+    db.refresh(assignment)
+    return assignment
+
+
+@router.post("/{course_id}/assignments", response_model=AssignmentOut, status_code=201)
+def create_assignment(course_id: UUID, new_assignment: AssignmentCreate, db: Session = Depends(get_db)):
+    """
+    Manually add an assignment a human typed in directly — the gap this
+    closes: if extraction found zero assignments for a course (or missed
+    one), there was previously no way to add one at all, only to correct
+    existing ones. Trusted at full confidence (1.0) and marked
+    human_corrected=True, same as a corrected extraction, since a
+    manually-entered assignment is exactly as trustworthy as one a human
+    fixed by hand — there's no meaningful distinction for the UI to make.
+    """
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    assignment = Assignment(
+        course_id=course.id,
+        name=new_assignment.name,
+        type=new_assignment.type.value,
+        weight_pct=new_assignment.weight_pct,
+        due_date=new_assignment.due_date,
+        raw_source_text="Added manually",
+        confidence=1.0,
+        human_corrected=True,
+    )
+    db.add(assignment)
+    db.flush()
+
+    # Recompute needs_review from every assignment on the course, not just
+    # the new one — clearing it unconditionally would be wrong if other,
+    # still-extracted assignments on this course remain low-confidence.
+    # The common case this feature exists for ("extraction found nothing,
+    # I added everything myself") does clear it, since there's nothing
+    # else to flag — but that's a consequence of this check, not a
+    # separate rule.
+    course.needs_review = any(a.confidence < REVIEW_THRESHOLD for a in course.assignments)
 
     db.commit()
     db.refresh(assignment)
