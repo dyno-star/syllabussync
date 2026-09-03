@@ -47,4 +47,12 @@ export const api = {
       body: JSON.stringify(update),
     }).then(handle);
   },
+
+  createAssignment(courseId, newAssignment) {
+    return fetch(`${BASE}/courses/${courseId}/assignments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(newAssignment),
+    }).then(handle);
+  },
 };
