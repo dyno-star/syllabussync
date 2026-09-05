@@ -59,52 +59,64 @@ export default function DeadlinesView({ onSelectCourse }) {
   }
 
   return (
-    <div className="card" style={{ overflow: "hidden" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
-        <thead>
-          <tr style={{ background: "var(--card-raised)", textAlign: "left" }}>
-            <th style={headerCellStyle}>Due</th>
-            <th style={headerCellStyle}>Assignment</th>
-            <th style={headerCellStyle}>Course</th>
-            <th style={headerCellStyle}>Weight</th>
-            <th style={headerCellStyle}></th>
-          </tr>
-        </thead>
-        <tbody>
-          {assignments.map((a) => {
-            const days = daysUntil(a.due_date);
-            const urgency = urgencyLabel(days);
-            return (
-              <tr
-                key={a.assignment_id}
-                style={{ borderTop: "1px solid var(--card-line)", cursor: "pointer" }}
-                onClick={() => onSelectCourse(a.course_id)}
-              >
-                <td style={{ padding: "12px", fontFamily: "var(--font-mono)", fontSize: 13, whiteSpace: "nowrap" }}>
-                  {a.due_date}
-                </td>
-                <td style={{ padding: "12px" }}>{a.name}</td>
-                <td style={{ padding: "12px", color: "var(--card-text-muted)" }}>
-                  {a.course_code || "Untitled"}
-                </td>
-                <td style={{ padding: "12px", fontFamily: "var(--font-mono)" }}>
-                  {a.weight_pct != null ? `${a.weight_pct}%` : "—"}
-                </td>
-                <td style={{ padding: "12px" }}>
-                  {urgency.tone && (
-                    <span className={`badge badge-${urgency.tone}`}>{urgency.text}</span>
-                  )}
-                  {!urgency.tone && (
-                    <span style={{ fontSize: 12, color: "var(--card-text-muted)", fontFamily: "var(--font-mono)" }}>
-                      {urgency.text}
-                    </span>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div>
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+        <a
+          href="/api/courses/calendar.ics"
+          download
+          className="btn btn-ghost"
+          style={{ padding: "6px 14px", fontSize: 13, textDecoration: "none", display: "inline-block" }}
+        >
+          Export to calendar (.ics)
+        </a>
+      </div>
+      <div className="card" style={{ overflow: "hidden" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+          <thead>
+            <tr style={{ background: "var(--card-raised)", textAlign: "left" }}>
+              <th style={headerCellStyle}>Due</th>
+              <th style={headerCellStyle}>Assignment</th>
+              <th style={headerCellStyle}>Course</th>
+              <th style={headerCellStyle}>Weight</th>
+              <th style={headerCellStyle}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {assignments.map((a) => {
+              const days = daysUntil(a.due_date);
+              const urgency = urgencyLabel(days);
+              return (
+                <tr
+                  key={a.assignment_id}
+                  style={{ borderTop: "1px solid var(--card-line)", cursor: "pointer" }}
+                  onClick={() => onSelectCourse(a.course_id)}
+                >
+                  <td style={{ padding: "12px", fontFamily: "var(--font-mono)", fontSize: 13, whiteSpace: "nowrap" }}>
+                    {a.due_date}
+                  </td>
+                  <td style={{ padding: "12px" }}>{a.name}</td>
+                  <td style={{ padding: "12px", color: "var(--card-text-muted)" }}>
+                    {a.course_code || "Untitled"}
+                  </td>
+                  <td style={{ padding: "12px", fontFamily: "var(--font-mono)" }}>
+                    {a.weight_pct != null ? `${a.weight_pct}%` : "—"}
+                  </td>
+                  <td style={{ padding: "12px" }}>
+                    {urgency.tone && (
+                      <span className={`badge badge-${urgency.tone}`}>{urgency.text}</span>
+                    )}
+                    {!urgency.tone && (
+                      <span style={{ fontSize: 12, color: "var(--card-text-muted)", fontFamily: "var(--font-mono)" }}>
+                        {urgency.text}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
