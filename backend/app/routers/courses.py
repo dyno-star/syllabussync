@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import Response
 from sqlalchemy.orm import Session, joinedload
 
 from app.db import get_db
@@ -18,6 +19,65 @@ from app.models.schemas import (
 from app.services.extraction import REVIEW_THRESHOLD
 
 router = APIRouter()
+
+
+@router.get("/calendar.ics")
+def export_calendar(db: Session = Depends(get_db)):
+    """
+    Exports every assignment with a due date, across every course, as a
+    downloadable .ics file — importable into Google Calendar, Apple
+    Calendar, Outlook, etc. Pairs with the /upcoming endpoint's in-app
+    deadlines view, but as a file a calendar app can subscribe to /
+    import directly, rather than something only visible inside this app.
+
+    Route ordering: same load-bearing concern as /upcoming below — this
+    must be registered before /{course_id}, or "/calendar.ics" would get
+    swallowed by that path parameter and fail UUID validation with a 422
+    instead of reaching this handler.
+
+    Uses the `icalendar` library rather than hand-building the .ics text
+    format: line folding (75-char limit per line), escaping commas/
+    semicolons in free text, and CRLF line endings are all real, easy
+    ways to produce a file that silently fails to import in some calendar
+    apps even though it looks fine opened as plain text.
+    """
+    from icalendar import Calendar, Event
+    from datetime import datetime, timezone
+
+    assignments = (
+        db.query(Assignment)
+        .join(Course)
+        .filter(Assignment.due_date.isnot(None))
+        .options(joinedload(Assignment.course))
+        .all()
+    )
+
+    cal = Calendar()
+    cal.add("prodid", "-//SyllabusSync//syllabussync//")
+    cal.add("version", "2.0")
+
+    for a in assignments:
+        event = Event()
+        course_label = a.course.course_code or "Untitled course"
+        event.add("summary", f"{course_label}: {a.name}")
+        event.add("dtstart", a.due_date)
+        event.add("dtend", a.due_date)
+        event.add("dtstamp", datetime.now(timezone.utc))
+        event.add("uid", f"{a.id}@syllabussync")
+        description_parts = []
+        if a.weight_pct is not None:
+            description_parts.append(f"Worth {a.weight_pct}% of final grade")
+        if a.course.course_name:
+            description_parts.append(a.course.course_name)
+        if description_parts:
+            event.add("description", " — ".join(description_parts))
+        cal.add_component(event)
+
+    return Response(
+        content=cal.to_ical(),
+        media_type="text/calendar",
+        headers={"Content-Disposition": "attachment; filename=syllabussync.ics"},
+    )
 
 
 @router.get("/upcoming", response_model=list[UpcomingAssignment])
