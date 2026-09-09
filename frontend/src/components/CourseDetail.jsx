@@ -216,8 +216,11 @@ function AddAssignmentRow({ courseId, onAdded, onCancel }) {
   );
 }
 
-function GradeSimulator({ assignments }) {
-  const [scores, setScores] = useState({});
+function GradeSimulator({ assignments, courseId, onScoreSaved }) {
+  const [scores, setScores] = useState(
+    Object.fromEntries(assignments.map((a) => [a.id, a.score_pct ?? ""]))
+  );
+  const [savingId, setSavingId] = useState(null);
 
   const totalWeight = assignments.reduce((sum, a) => sum + (a.weight_pct || 0), 0);
   const currentGrade = assignments.reduce((sum, a) => {
@@ -232,13 +235,27 @@ function GradeSimulator({ assignments }) {
     return sum + (a.weight_pct || 0);
   }, 0);
 
+  async function saveScore(assignmentId, rawValue) {
+    const scorePct = rawValue === "" ? null : parseFloat(rawValue);
+    if (scorePct !== null && Number.isNaN(scorePct)) return;
+
+    setSavingId(assignmentId);
+    try {
+      const updated = await api.recordAssignmentScore(courseId, assignmentId, scorePct);
+      onScoreSaved(updated);
+    } finally {
+      setSavingId(null);
+    }
+  }
+
   return (
     <div className="card" style={{ padding: 24, marginTop: 20 }}>
       <p style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: 19, margin: "0 0 4px" }}>
         Grade simulator
       </p>
       <p style={{ color: "var(--card-text-muted)", fontSize: 13, marginBottom: 18 }}>
-        Enter a score for any assignment to see how it affects your total.
+        Enter a score once it's graded — it's saved automatically and you'll see
+        it again next time.
       </p>
 
       <div style={{ display: "grid", gap: 10 }}>
@@ -257,8 +274,12 @@ function GradeSimulator({ assignments }) {
               max="100"
               value={scores[a.id] ?? ""}
               onChange={(e) => setScores({ ...scores, [a.id]: e.target.value })}
+              onBlur={(e) => saveScore(a.id, e.target.value)}
               style={{ width: 92 }}
             />
+            {savingId === a.id && (
+              <span style={{ fontSize: 11, color: "var(--card-text-muted)" }}>saving…</span>
+            )}
           </div>
         ))}
       </div>
@@ -551,7 +572,13 @@ export default function CourseDetail({ course, onUpdated, onBack, onDelete }) {
         )}
       </div>
 
-      {course.assignments.length > 0 && <GradeSimulator assignments={course.assignments} />}
+      {course.assignments.length > 0 && (
+        <GradeSimulator
+          assignments={course.assignments}
+          courseId={course.id}
+          onScoreSaved={handleAssignmentUpdated}
+        />
+      )}
     </div>
   );
 }
