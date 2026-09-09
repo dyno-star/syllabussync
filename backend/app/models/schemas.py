@@ -48,6 +48,7 @@ class AssignmentOut(BaseModel):
     due_date: date | None
     confidence: float
     human_corrected: bool
+    score_pct: float | None
 
     @field_validator("id", mode="before")
     @classmethod
@@ -63,6 +64,20 @@ class AssignmentUpdate(BaseModel):
     type: AssignmentType | None = None
     weight_pct: float | None = None
     due_date: date | None = None
+
+
+class AssignmentScoreUpdate(BaseModel):
+    """
+    Records the actual score a student received — distinct from
+    AssignmentUpdate, which corrects wrong extraction fields (name, type,
+    weight, due date). Entering a real grade isn't "fixing an error," so it
+    goes through its own endpoint and doesn't touch human_corrected or
+    confidence, which are extraction-quality signals, not grade tracking.
+    score_pct is nullable so a student can clear an entered score (e.g. if
+    they misread the score or it hasn't been officially posted yet).
+    """
+
+    score_pct: float | None = None
 
 
 class AssignmentCreate(BaseModel):
