@@ -12,6 +12,7 @@ from app.models.schemas import (
     CourseUpdate,
     AssignmentUpdate,
     AssignmentCreate,
+    AssignmentScoreUpdate,
     AssignmentOut,
     UpcomingAssignment,
 )
@@ -192,6 +193,35 @@ def correct_assignment(
     if update_data:
         assignment.human_corrected = True
 
+    db.commit()
+    db.refresh(assignment)
+    return assignment
+
+
+@router.patch("/{course_id}/assignments/{assignment_id}/score", response_model=AssignmentOut)
+def record_assignment_score(
+    course_id: UUID,
+    assignment_id: UUID,
+    update: AssignmentScoreUpdate,
+    db: Session = Depends(get_db),
+):
+    """
+    Records the actual score received on an assignment — separate from
+    correct_assignment() above, which fixes wrong extraction fields.
+    Deliberately does NOT touch human_corrected or confidence: entering a
+    real grade is not the same signal as correcting an extraction error,
+    and conflating them would make "human_corrected" (used elsewhere to
+    show a "Corrected" badge) mean two different things.
+    """
+    assignment = (
+        db.query(Assignment)
+        .filter(Assignment.id == assignment_id, Assignment.course_id == course_id)
+        .first()
+    )
+    if not assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+
+    assignment.score_pct = update.score_pct
     db.commit()
     db.refresh(assignment)
     return assignment
