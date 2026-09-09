@@ -48,6 +48,14 @@ export const api = {
     }).then(handle);
   },
 
+  recordAssignmentScore(courseId, assignmentId, scorePct) {
+    return fetch(`${BASE}/courses/${courseId}/assignments/${assignmentId}/score`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ score_pct: scorePct }),
+    }).then(handle);
+  },
+
   createAssignment(courseId, newAssignment) {
     return fetch(`${BASE}/courses/${courseId}/assignments`, {
       method: "POST",
