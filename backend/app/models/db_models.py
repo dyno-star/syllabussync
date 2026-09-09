@@ -35,10 +35,11 @@ class Assignment(Base):
     due_date = Column(Date, nullable=True)
     raw_source_text = Column(Text, nullable=True)
     confidence = Column(Float, default=0.5)
-
-    # Tracks whether a human has corrected this field after extraction —
-    # useful later for measuring real-world extraction accuracy beyond
-    # the eval fixture set (how often do users actually fix things?)
     human_corrected = Column(Boolean, default=False)
+
+    # The actual score the student received, as entered by the user — distinct
+    # from weight_pct (how much this assignment counts toward the final
+    # grade). Nullable: most assignments won't have a score yet until graded.
+    score_pct = Column(Float, nullable=True)
 
     course = relationship("Course", back_populates="assignments")
