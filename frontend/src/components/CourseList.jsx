@@ -131,6 +131,21 @@ export default function CourseList({ courses, onSelectCourse, onUploadClick, loa
                 >
                   {course.term || "Term not detected"} · weights sum to {course.total_weight_pct}%
                 </div>
+                {course.current_grade_pct != null && (
+                  <div
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 13,
+                      color: "var(--card-text)",
+                      marginTop: 4,
+                    }}
+                  >
+                    Current grade: <strong>{course.current_grade_pct.toFixed(1)}%</strong>{" "}
+                    <span style={{ color: "var(--card-text-muted)", fontSize: 11 }}>
+                      ({course.graded_weight_pct}% graded)
+                    </span>
+                  </div>
+                )}
               </div>
               {course.needs_review && <Stamp label="Needs review" variant="review" />}
               {!course.needs_review && course.total_weight_pct > 0 && (
