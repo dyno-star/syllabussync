@@ -128,6 +128,17 @@ class CourseSummary(BaseModel):
     term: str | None
     needs_review: bool
     total_weight_pct: float
+    current_grade_pct: float | None = Field(
+        default=None,
+        description="Weighted grade from assignments with a score entered so far. "
+        "None if nothing has been graded yet — distinct from 0, which would "
+        "wrongly imply a failing grade rather than 'no data.'",
+    )
+    graded_weight_pct: float = Field(
+        default=0.0,
+        description="How much of total_weight_pct has an entered score, so the "
+        "frontend can show e.g. '87% based on 45% of the course graded so far.'",
+    )
 
     @field_validator("id", mode="before")
     @classmethod
