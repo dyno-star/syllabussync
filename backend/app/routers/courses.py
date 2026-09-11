@@ -121,20 +121,43 @@ def list_upcoming_assignments(db: Session = Depends(get_db)):
     ]
 
 
+def _compute_running_grade(assignments: list[Assignment]) -> tuple[float | None, float]:
+    """
+    Mirrors the same weighted-grade math the frontend's GradeSimulator has
+    always done client-side — moved here so the course list can show it
+    per-card without fetching every course's full assignment detail.
+    Returns (current_grade_pct, graded_weight_pct); current_grade_pct is
+    None (not 0) when nothing has a score yet, since 0% would misleadingly
+    read as a failing grade rather than "no data."
+    """
+    scored = [a for a in assignments if a.score_pct is not None and a.weight_pct is not None]
+    if not scored:
+        return None, 0.0
+
+    current_grade_pct = sum((a.score_pct / 100) * a.weight_pct for a in scored)
+    graded_weight_pct = sum(a.weight_pct for a in scored)
+    return current_grade_pct, graded_weight_pct
+
+
 @router.get("/", response_model=list[CourseSummary])
 def list_courses(db: Session = Depends(get_db)):
     courses = db.query(Course).options(joinedload(Course.assignments)).all()
-    return [
-        CourseSummary(
-            id=str(c.id),
-            course_code=c.course_code,
-            course_name=c.course_name,
-            term=c.term,
-            needs_review=c.needs_review,
-            total_weight_pct=sum(a.weight_pct or 0 for a in c.assignments),
+    result = []
+    for c in courses:
+        current_grade_pct, graded_weight_pct = _compute_running_grade(c.assignments)
+        result.append(
+            CourseSummary(
+                id=str(c.id),
+                course_code=c.course_code,
+                course_name=c.course_name,
+                term=c.term,
+                needs_review=c.needs_review,
+                total_weight_pct=sum(a.weight_pct or 0 for a in c.assignments),
+                current_grade_pct=current_grade_pct,
+                graded_weight_pct=graded_weight_pct,
+            )
         )
-        for c in courses
-    ]
+    return result
 
 
 @router.get("/{course_id}", response_model=CourseOut)
