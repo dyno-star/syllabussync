@@ -37,6 +37,46 @@ class ExtractedSyllabus(BaseModel):
     needs_review: bool = Field(default=False)
 
 
+# --- Auth schemas ---
+
+
+class UserCreate(BaseModel):
+    email: str = Field(min_length=3)
+    password: str = Field(min_length=8, description="Minimum 8 characters — no other complexity rules for this MVP")
+
+    @field_validator("email")
+    @classmethod
+    def basic_email_shape(cls, v):
+        # Deliberately not pulling in email-validator for full RFC compliance
+        # in an MVP — just enough to catch obvious garbage input ("asdf").
+        if "@" not in v or "." not in v.split("@")[-1]:
+            raise ValueError("Doesn't look like a valid email address")
+        return v.lower().strip()
+
+
+class UserLogin(BaseModel):
+    email: str
+    password: str
+
+
+class UserOut(BaseModel):
+    id: str
+    email: str
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def coerce_uuid(cls, v):
+        return str(v)
+
+    class Config:
+        from_attributes = True
+
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
 # --- Persisted / API-facing schemas ---
 
 
