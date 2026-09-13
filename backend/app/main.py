@@ -3,14 +3,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.db import Base, engine
-from app.routers import courses, documents
-from app.models import db_models  # noqa: F401 — import registers models with Base
+from app.routers import auth, courses, documents
+from app.models import db_models  # noqa: F401
 
 app = FastAPI(title="SyllabusSync API", version="0.1.0")
 
-# v1: create tables directly on startup. Fine for a single-developer
-# portfolio project; a real production app would use Alembic migrations
-# instead so schema changes are tracked and reversible.
 Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
@@ -21,6 +18,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(courses.router, prefix="/api/courses", tags=["courses"])
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 
