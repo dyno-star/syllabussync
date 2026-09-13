@@ -6,10 +6,22 @@ import uuid
 from app.db import Base
 
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Uuid, primary_key=True, default=uuid.uuid4)
+    email = Column(String, unique=True, nullable=False, index=True)
+    password_hash = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    courses = relationship("Course", back_populates="owner", cascade="all, delete-orphan")
+
+
 class Course(Base):
     __tablename__ = "courses"
 
     id = Column(Uuid, primary_key=True, default=uuid.uuid4)
+    user_id = Column(Uuid, ForeignKey("users.id"), nullable=False)
     course_code = Column(String, nullable=True)
     course_name = Column(String, nullable=True)
     instructor = Column(String, nullable=True)
@@ -18,6 +30,7 @@ class Course(Base):
     needs_review = Column(Boolean, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
+    owner = relationship("User", back_populates="courses")
     assignments = relationship(
         "Assignment", back_populates="course", cascade="all, delete-orphan"
     )
