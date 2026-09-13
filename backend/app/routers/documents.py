@@ -2,9 +2,10 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models.db_models import Course, Assignment
+from app.models.db_models import Course, Assignment, User
 from app.models.schemas import CourseOut
 from app.services.extraction import extract_syllabus
+from app.routers.auth import get_current_user
 
 router = APIRouter()
 
@@ -16,18 +17,11 @@ ALLOWED_CONTENT_TYPES = {
 
 
 @router.post("/upload", response_model=CourseOut)
-async def upload_syllabus(file: UploadFile = File(...), db: Session = Depends(get_db)):
-    """
-    Upload a syllabus (PDF, .docx, or .dotx), run it through the extraction
-    pipeline, and persist the result as a Course with its Assignments.
-
-    v1: synchronous extraction. Real syllabi with ML-based extraction
-    (once wired in) may be slow enough that this should become a background
-    job with polling — noting that as a known future change, not fixing now.
-
-    Note: legacy .doc (pre-2007 binary format) is not supported — only
-    modern OOXML formats (.docx, .dotx) and PDF.
-    """
+async def upload_syllabus(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     lower_name = file.filename.lower()
     matches_extension = lower_name.endswith(".docx") or lower_name.endswith(".dotx")
     if file.content_type not in ALLOWED_CONTENT_TYPES and not matches_extension:
@@ -40,6 +34,7 @@ async def upload_syllabus(file: UploadFile = File(...), db: Session = Depends(ge
     extracted = extract_syllabus(file_bytes, filename=file.filename, content_type=file.content_type)
 
     course = Course(
+        user_id=current_user.id,
         course_code=extracted.course_code,
         course_name=extracted.course_name,
         instructor=extracted.instructor,
@@ -48,7 +43,7 @@ async def upload_syllabus(file: UploadFile = File(...), db: Session = Depends(ge
         needs_review=extracted.needs_review,
     )
     db.add(course)
-    db.flush()  # assigns course.id before we attach assignments
+    db.flush()
 
     for a in extracted.assignments:
         db.add(
