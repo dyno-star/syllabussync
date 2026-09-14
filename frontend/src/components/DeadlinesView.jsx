@@ -61,14 +61,13 @@ export default function DeadlinesView({ onSelectCourse }) {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
-        <a
-          href="/api/courses/calendar.ics"
-          download
+        <button
           className="btn btn-ghost"
-          style={{ padding: "6px 14px", fontSize: 13, textDecoration: "none", display: "inline-block" }}
+          style={{ padding: "6px 14px", fontSize: 13 }}
+          onClick={() => api.downloadCalendar().catch((err) => alert(err.message))}
         >
           Export to calendar (.ics)
-        </a>
+        </button>
       </div>
       <div className="card" style={{ overflow: "hidden" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
