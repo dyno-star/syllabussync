@@ -2,10 +2,9 @@ from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models.db_models import Course, Assignment, User
+from app.models.db_models import Course, Assignment
 from app.models.schemas import CourseOut
 from app.services.extraction import extract_syllabus
-from app.routers.auth import get_current_user
 
 router = APIRouter()
 
@@ -17,11 +16,7 @@ ALLOWED_CONTENT_TYPES = {
 
 
 @router.post("/upload", response_model=CourseOut)
-async def upload_syllabus(
-    file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
+async def upload_syllabus(file: UploadFile = File(...), db: Session = Depends(get_db)):
     lower_name = file.filename.lower()
     matches_extension = lower_name.endswith(".docx") or lower_name.endswith(".dotx")
     if file.content_type not in ALLOWED_CONTENT_TYPES and not matches_extension:
@@ -34,7 +29,6 @@ async def upload_syllabus(
     extracted = extract_syllabus(file_bytes, filename=file.filename, content_type=file.content_type)
 
     course = Course(
-        user_id=current_user.id,
         course_code=extracted.course_code,
         course_name=extracted.course_name,
         instructor=extracted.instructor,
