@@ -5,7 +5,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session, joinedload
 
 from app.db import get_db
-from app.models.db_models import Course, Assignment, User
+from app.models.db_models import Course, Assignment
 from app.models.schemas import (
     CourseOut,
     CourseSummary,
@@ -18,39 +18,20 @@ from app.models.schemas import (
 )
 
 from app.services.extraction import REVIEW_THRESHOLD
-from app.routers.auth import get_current_user
 
 router = APIRouter()
 
 
-def _get_owned_course(course_id: UUID, current_user: User, db: Session) -> Course:
-    """
-    Shared lookup for every route below that needs a specific course: scopes
-    by user_id, not just by course_id — so requesting someone else's course
-    ID returns 404, identical to a nonexistent ID. This is deliberate: a
-    403 ("exists, but not yours") would confirm to an attacker that a given
-    course ID is real, leaking information a 404 doesn't.
-    """
-    course = (
-        db.query(Course)
-        .filter(Course.id == course_id, Course.user_id == current_user.id)
-        .first()
-    )
-    if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
-    return course
-
-
 @router.get("/calendar.ics")
-def export_calendar(
-    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
-):
+def export_calendar(db: Session = Depends(get_db)):
     """
-    Exports every assignment with a due date, across every course the
-    current user owns, as a downloadable .ics file.
+    Exports every assignment with a due date, across every course, as a
+    downloadable .ics file — importable into Google Calendar, Apple
+    Calendar, Outlook, etc.
 
     Route ordering: must be registered before /{course_id}, or
-    "/calendar.ics" would get swallowed by that path parameter.
+    "/calendar.ics" would get swallowed by that path parameter and fail
+    UUID validation with a 422 instead of reaching this handler.
     """
     from icalendar import Calendar, Event
     from datetime import datetime, timezone
@@ -58,7 +39,7 @@ def export_calendar(
     assignments = (
         db.query(Assignment)
         .join(Course)
-        .filter(Assignment.due_date.isnot(None), Course.user_id == current_user.id)
+        .filter(Assignment.due_date.isnot(None))
         .options(joinedload(Assignment.course))
         .all()
     )
@@ -92,12 +73,10 @@ def export_calendar(
 
 
 @router.get("/upcoming", response_model=list[UpcomingAssignment])
-def list_upcoming_assignments(
-    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
-):
+def list_upcoming_assignments(db: Session = Depends(get_db)):
     """
-    Every assignment across every course the current user owns that has a
-    due date, sorted soonest-first.
+    Every assignment across every course that has a due date, sorted
+    soonest-first.
 
     Route ordering: must be registered before /{course_id} — same concern
     as /calendar.ics above.
@@ -105,7 +84,7 @@ def list_upcoming_assignments(
     assignments = (
         db.query(Assignment)
         .join(Course)
-        .filter(Assignment.due_date.isnot(None), Course.user_id == current_user.id)
+        .filter(Assignment.due_date.isnot(None))
         .options(joinedload(Assignment.course))
         .order_by(Assignment.due_date.asc())
         .all()
@@ -143,15 +122,8 @@ def _compute_running_grade(assignments: list[Assignment]) -> tuple[float | None,
 
 
 @router.get("/", response_model=list[CourseSummary])
-def list_courses(
-    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
-):
-    courses = (
-        db.query(Course)
-        .filter(Course.user_id == current_user.id)
-        .options(joinedload(Course.assignments))
-        .all()
-    )
+def list_courses(db: Session = Depends(get_db)):
+    courses = db.query(Course).options(joinedload(Course.assignments)).all()
     result = []
     for c in courses:
         current_grade_pct, graded_weight_pct = _compute_running_grade(c.assignments)
@@ -171,22 +143,18 @@ def list_courses(
 
 
 @router.get("/{course_id}", response_model=CourseOut)
-def get_course(
-    course_id: UUID,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    return _get_owned_course(course_id, current_user, db)
+def get_course(course_id: UUID, db: Session = Depends(get_db)):
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    return course
 
 
 @router.patch("/{course_id}", response_model=CourseOut)
-def update_course(
-    course_id: UUID,
-    update: CourseUpdate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    course = _get_owned_course(course_id, current_user, db)
+def update_course(course_id: UUID, update: CourseUpdate, db: Session = Depends(get_db)):
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
 
     update_data = update.model_dump(exclude_unset=True)
     for field, value in update_data.items():
@@ -198,12 +166,10 @@ def update_course(
 
 
 @router.delete("/{course_id}", status_code=204)
-def delete_course(
-    course_id: UUID,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    course = _get_owned_course(course_id, current_user, db)
+def delete_course(course_id: UUID, db: Session = Depends(get_db)):
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
     db.delete(course)
     db.commit()
 
@@ -213,11 +179,8 @@ def correct_assignment(
     course_id: UUID,
     assignment_id: UUID,
     update: AssignmentUpdate,
-    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _get_owned_course(course_id, current_user, db)
-
     assignment = (
         db.query(Assignment)
         .filter(Assignment.id == assignment_id, Assignment.course_id == course_id)
@@ -245,11 +208,13 @@ def record_assignment_score(
     course_id: UUID,
     assignment_id: UUID,
     update: AssignmentScoreUpdate,
-    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    _get_owned_course(course_id, current_user, db)
-
+    """
+    Records the actual score received — separate from correct_assignment
+    above, which fixes wrong extraction fields. Doesn't touch
+    human_corrected or confidence.
+    """
     assignment = (
         db.query(Assignment)
         .filter(Assignment.id == assignment_id, Assignment.course_id == course_id)
@@ -265,13 +230,15 @@ def record_assignment_score(
 
 
 @router.post("/{course_id}/assignments", response_model=AssignmentOut, status_code=201)
-def create_assignment(
-    course_id: UUID,
-    new_assignment: AssignmentCreate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    course = _get_owned_course(course_id, current_user, db)
+def create_assignment(course_id: UUID, new_assignment: AssignmentCreate, db: Session = Depends(get_db)):
+    """
+    Manually add an assignment a human typed in directly — closes the gap
+    where, if extraction found zero assignments, there was no way to add
+    one at all.
+    """
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
 
     assignment = Assignment(
         course_id=course.id,
