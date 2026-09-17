@@ -5,12 +5,10 @@ import CourseList from "./components/CourseList";
 import UploadView from "./components/UploadView";
 import CourseDetail from "./components/CourseDetail";
 import DeadlinesView from "./components/DeadlinesView";
-import LoginView from "./components/LoginView";
 import { StampFilterDefs } from "./components/Stamp";
 
 // view = "list" | "upload" | "detail" | "deadlines"
 export default function App() {
-  const [authenticated, setAuthenticated] = useState(api.isAuthenticated());
   const [view, setView] = useState("list");
   const [courses, setCourses] = useState([]);
   const [loadingCourses, setLoadingCourses] = useState(true);
@@ -18,16 +16,8 @@ export default function App() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (authenticated) refreshCourses();
-  }, [authenticated]);
-
-  function handleLogout() {
-    api.logout();
-    setAuthenticated(false);
-    setView("list");
-    setCourses([]);
-    setSelectedCourse(null);
-  }
+    refreshCourses();
+  }, []);
 
   async function refreshCourses() {
     setLoadingCourses(true);
@@ -73,118 +63,107 @@ export default function App() {
     <div style={{ minHeight: "100vh" }}>
       <StampFilterDefs />
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "48px 24px 80px" }}>
-        {!authenticated ? (
-          <LoginView onAuthenticated={() => setAuthenticated(true)} />
-        ) : (
-          <>
-            <header
+        <header
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+            marginBottom: 40,
+            paddingBottom: 20,
+            borderBottom: "1px solid var(--bg-line)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "baseline", gap: 24 }}>
+            <div
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "baseline",
-                marginBottom: 40,
-                paddingBottom: 20,
-                borderBottom: "1px solid var(--bg-line)",
+                fontFamily: "var(--font-display)",
+                fontStyle: "italic",
+                fontWeight: 600,
+                fontSize: 26,
+                letterSpacing: "-0.01em",
+                cursor: "pointer",
+                color: "var(--paper-text)",
               }}
+              onClick={() => setView("list")}
             >
-              <div style={{ display: "flex", alignItems: "baseline", gap: 24 }}>
-                <div
-                  style={{
-                    fontFamily: "var(--font-display)",
-                    fontStyle: "italic",
-                    fontWeight: 600,
-                    fontSize: 26,
-                    letterSpacing: "-0.01em",
-                    cursor: "pointer",
-                    color: "var(--paper-text)",
-                  }}
-                  onClick={() => setView("list")}
-                >
-                  SyllabusSync
-                </div>
-                <nav style={{ display: "flex", gap: 4 }}>
-                  <button
-                    className="btn-ghost"
-                    style={{
-                      padding: "6px 12px",
-                      fontSize: 13,
-                      borderRadius: "var(--radius)",
-                      border: "none",
-                      background: view === "list" ? "var(--bg-raised)" : "transparent",
-                      color: view === "list" ? "var(--paper-text)" : "var(--paper-text-muted)",
-                    }}
-                    onClick={() => setView("list")}
-                  >
-                    Courses
-                  </button>
-                  <button
-                    className="btn-ghost"
-                    style={{
-                      padding: "6px 12px",
-                      fontSize: 13,
-                      borderRadius: "var(--radius)",
-                      border: "none",
-                      background: view === "deadlines" ? "var(--bg-raised)" : "transparent",
-                      color: view === "deadlines" ? "var(--paper-text)" : "var(--paper-text-muted)",
-                    }}
-                    onClick={() => setView("deadlines")}
-                  >
-                    Deadlines
-                  </button>
-                </nav>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                {view === "list" && courses.length > 0 && (
-                  <button className="btn" onClick={() => setView("upload")}>
-                    + Upload syllabus
-                  </button>
-                )}
-                <button className="btn-ghost" style={{ padding: "6px 12px", fontSize: 13, border: "none" }} onClick={handleLogout}>
-                  Sign out
-                </button>
-              </div>
-            </header>
-
-            {error && (
-              <div
-                className="card"
+              SyllabusSync
+            </div>
+            <nav style={{ display: "flex", gap: 4 }}>
+              <button
+                className="btn-ghost"
                 style={{
-                  padding: 14,
-                  marginBottom: 24,
-                  background: "var(--stamp-red-soft)",
-                  color: "var(--stamp-red)",
+                  padding: "6px 12px",
                   fontSize: 13,
-                  border: "1px solid var(--stamp-red)",
+                  borderRadius: "var(--radius)",
+                  border: "none",
+                  background: view === "list" ? "var(--bg-raised)" : "transparent",
+                  color: view === "list" ? "var(--paper-text)" : "var(--paper-text-muted)",
                 }}
+                onClick={() => setView("list")}
               >
-                {error}
-              </div>
-            )}
+                Courses
+              </button>
+              <button
+                className="btn-ghost"
+                style={{
+                  padding: "6px 12px",
+                  fontSize: 13,
+                  borderRadius: "var(--radius)",
+                  border: "none",
+                  background: view === "deadlines" ? "var(--bg-raised)" : "transparent",
+                  color: view === "deadlines" ? "var(--paper-text)" : "var(--paper-text-muted)",
+                }}
+                onClick={() => setView("deadlines")}
+              >
+                Deadlines
+              </button>
+            </nav>
+          </div>
+          {view === "list" && courses.length > 0 && (
+            <button className="btn" onClick={() => setView("upload")}>
+              + Upload syllabus
+            </button>
+          )}
+        </header>
 
-            {view === "list" && (
-              <CourseList
-                courses={courses}
-                loading={loadingCourses}
-                onSelectCourse={openCourse}
-                onUploadClick={() => setView("upload")}
-              />
-            )}
+        {error && (
+          <div
+            className="card"
+            style={{
+              padding: 14,
+              marginBottom: 24,
+              background: "var(--stamp-red-soft)",
+              color: "var(--stamp-red)",
+              fontSize: 13,
+              border: "1px solid var(--stamp-red)",
+            }}
+          >
+            {error}
+          </div>
+        )}
 
-            {view === "deadlines" && <DeadlinesView onSelectCourse={openCourse} />}
+        {view === "list" && (
+          <CourseList
+            courses={courses}
+            loading={loadingCourses}
+            onSelectCourse={openCourse}
+            onUploadClick={() => setView("upload")}
+          />
+        )}
 
-            {view === "upload" && (
-              <UploadView onUploaded={handleUploaded} onCancel={() => setView("list")} />
-            )}
+        {view === "deadlines" && <DeadlinesView onSelectCourse={openCourse} />}
 
-            {view === "detail" && selectedCourse && (
-              <CourseDetail
-                course={selectedCourse}
-                onUpdated={setSelectedCourse}
-                onBack={() => setView("list")}
-                onDelete={handleDelete}
-              />
-            )}
-          </>
+        {view === "upload" && (
+          <UploadView onUploaded={handleUploaded} onCancel={() => setView("list")} />
+        )}
+
+        {view === "detail" && selectedCourse && (
+          <CourseDetail
+            course={selectedCourse}
+            onUpdated={setSelectedCourse}
+            onBack={() => setView("list")}
+            onDelete={handleDelete}
+          />
         )}
       </div>
     </div>
