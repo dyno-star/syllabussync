@@ -37,46 +37,6 @@ class ExtractedSyllabus(BaseModel):
     needs_review: bool = Field(default=False)
 
 
-# --- Auth schemas ---
-
-
-class UserCreate(BaseModel):
-    email: str = Field(min_length=3)
-    password: str = Field(min_length=8, description="Minimum 8 characters — no other complexity rules for this MVP")
-
-    @field_validator("email")
-    @classmethod
-    def basic_email_shape(cls, v):
-        # Deliberately not pulling in email-validator for full RFC compliance
-        # in an MVP — just enough to catch obvious garbage input ("asdf").
-        if "@" not in v or "." not in v.split("@")[-1]:
-            raise ValueError("Doesn't look like a valid email address")
-        return v.lower().strip()
-
-
-class UserLogin(BaseModel):
-    email: str
-    password: str
-
-
-class UserOut(BaseModel):
-    id: str
-    email: str
-
-    @field_validator("id", mode="before")
-    @classmethod
-    def coerce_uuid(cls, v):
-        return str(v)
-
-    class Config:
-        from_attributes = True
-
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-
-
 # --- Persisted / API-facing schemas ---
 
 
@@ -109,12 +69,9 @@ class AssignmentUpdate(BaseModel):
 class AssignmentScoreUpdate(BaseModel):
     """
     Records the actual score a student received — distinct from
-    AssignmentUpdate, which corrects wrong extraction fields (name, type,
-    weight, due date). Entering a real grade isn't "fixing an error," so it
-    goes through its own endpoint and doesn't touch human_corrected or
-    confidence, which are extraction-quality signals, not grade tracking.
-    score_pct is nullable so a student can clear an entered score (e.g. if
-    they misread the score or it hasn't been officially posted yet).
+    AssignmentUpdate, which corrects wrong extraction fields. Entering a
+    real grade isn't "fixing an error," so it doesn't touch
+    human_corrected or confidence.
     """
 
     score_pct: float | None = None
@@ -123,10 +80,9 @@ class AssignmentScoreUpdate(BaseModel):
 class AssignmentCreate(BaseModel):
     """
     For manually adding an assignment a human typed in directly — as
-    opposed to one extraction produced. Name and type are required (there's
-    no reasonable default for either); weight and due date are optional
-    since a user might want to log "there's a final project" before they
-    know its exact weight or date yet.
+    opposed to one extraction produced. Name and type are required; weight
+    and due date are optional since a user might want to log "there's a
+    final project" before they know its exact weight or date yet.
     """
 
     name: str = Field(min_length=1)
@@ -176,8 +132,7 @@ class CourseSummary(BaseModel):
     )
     graded_weight_pct: float = Field(
         default=0.0,
-        description="How much of total_weight_pct has an entered score, so the "
-        "frontend can show e.g. '87% based on 45% of the course graded so far.'",
+        description="How much of total_weight_pct has an entered score.",
     )
 
     @field_validator("id", mode="before")
@@ -190,14 +145,6 @@ class CourseSummary(BaseModel):
 
 
 class UpcomingAssignment(BaseModel):
-    """
-    One assignment with its due date, flattened together with just enough
-    course context to display it in a cross-course deadlines list — not
-    the full CourseOut, since the deadlines view doesn't need every field
-    (instructor, needs_review, etc.) and flattening avoids the frontend
-    having to do its own join.
-    """
-
     assignment_id: str
     course_id: str
     course_code: str | None
