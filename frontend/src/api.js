@@ -63,4 +63,13 @@ export const api = {
       body: JSON.stringify(newAssignment),
     }).then(handle);
   },
+
+  reuploadSyllabus(courseId, file) {
+    const formData = new FormData();
+    formData.append("file", file);
+    return fetch(`${BASE}/documents/reupload/${courseId}`, {
+      method: "POST",
+      body: formData,
+    }).then(handle);
+  },
 };
