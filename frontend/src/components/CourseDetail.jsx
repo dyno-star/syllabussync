@@ -303,6 +303,63 @@ function GradeSimulator({ assignments, courseId, onScoreSaved }) {
   );
 }
 
+function ReuploadControl({ courseId, onReuploaded }) {
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState(null);
+  const [justSucceeded, setJustSucceeded] = useState(false);
+
+  async function handleFileChange(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setUploading(true);
+    setError(null);
+    setJustSucceeded(false);
+    try {
+      const updated = await api.reuploadSyllabus(courseId, file);
+      onReuploaded(updated);
+      setJustSucceeded(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploading(false);
+      e.target.value = ""; // allow re-selecting the same filename later
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 12 }}>
+      <label
+        className="btn btn-ghost"
+        style={{
+          padding: "4px 12px",
+          fontSize: 12,
+          cursor: uploading ? "default" : "pointer",
+          opacity: uploading ? 0.6 : 1,
+          display: "inline-block",
+        }}
+      >
+        {uploading ? "Merging revised syllabus…" : "Re-upload revised syllabus"}
+        <input
+          type="file"
+          accept="application/pdf,.docx,.dotx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.wordprocessingml.template"
+          onChange={handleFileChange}
+          disabled={uploading}
+          style={{ display: "none" }}
+        />
+      </label>
+      {justSucceeded && (
+        <span style={{ fontSize: 12, color: "var(--brass)", marginLeft: 10 }}>
+          Merged — corrected fields and entered scores were kept.
+        </span>
+      )}
+      {error && (
+        <div style={{ color: "var(--stamp-red)", fontSize: 12, marginTop: 6 }}>{error}</div>
+      )}
+    </div>
+  );
+}
+
 function CourseHeader({ course, onUpdated }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({
@@ -453,11 +510,6 @@ export default function CourseDetail({ course, onUpdated, onBack, onDelete }) {
   }
 
   async function handleAssignmentAdded() {
-    // Refetch rather than splice the new assignment in locally and guess
-    // at needs_review — the backend recomputes needs_review across every
-    // assignment on the course (see courses.py's create_assignment), and
-    // guessing that value here risks it silently drifting out of sync with
-    // what the server actually decided.
     const refreshed = await api.getCourse(course.id);
     onUpdated(refreshed);
     setAddingAssignment(false);
@@ -476,7 +528,10 @@ export default function CourseDetail({ course, onUpdated, onBack, onDelete }) {
       </button>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
-        <CourseHeader course={course} onUpdated={onUpdated} />
+        <div>
+          <CourseHeader course={course} onUpdated={onUpdated} />
+          <ReuploadControl courseId={course.id} onReuploaded={onUpdated} />
+        </div>
         <button className="btn btn-danger" onClick={onDelete}>
           Delete course
         </button>
