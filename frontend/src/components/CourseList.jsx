@@ -129,7 +129,9 @@ export default function CourseList({ courses, onSelectCourse, onUploadClick, loa
                     letterSpacing: "0.01em",
                   }}
                 >
-                  {course.term || "Term not detected"} · weights sum to {course.total_weight_pct}%
+                  {course.total_weight_pct > 0
+                    ? `${course.term || "Term not detected"} · weights sum to ${course.total_weight_pct}%`
+                    : `${course.term || "Term not detected"} · nothing extracted yet — open to add assignments`}
                 </div>
                 {course.current_grade_pct != null && (
                   <div
