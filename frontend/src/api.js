@@ -1,4 +1,12 @@
-const BASE = "/api";
+// In local dev (docker compose), requests to /api are proxied to the
+// backend container by vite.config.js — see BACKEND_CORS_ORIGINS in the
+// backend's .env for the matching CORS setup. In production, frontend and
+// backend are deployed as separate services with separate URLs, so the
+// base has to be configurable rather than a hardcoded relative path.
+// Set VITE_API_BASE_URL at build time (e.g. in Render's static site env
+// vars) to your deployed backend's URL, like
+// https://syllabussync-backend.onrender.com/api
+const BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
 async function handle(res) {
   if (!res.ok) {
