@@ -36,15 +36,26 @@ def load_fixture_pairs() -> list[tuple[Path, Path]]:
     return pairs
 
 
-def score_assignment_match(predicted: dict, expected: dict) -> dict:
+def _normalize_name(name: str) -> str:
+    return " ".join(name.strip().lower().split())
+
+
+def score_assignment_match(predicted: dict | None, expected: dict) -> dict:
+    """
+    predicted is None when extraction found no assignment with this name —
+    every field then counts as a miss. Without that, a missing assignment
+    whose expected due_date is null would score a "correct" date for free.
+    """
+    if predicted is None:
+        return {"name_match": False, "type_match": False, "weight_match": False, "date_match": False}
     return {
-        "name_match": predicted.get("name", "").strip().lower()
-        == expected["name"].strip().lower(),
+        "name_match": True,
         "type_match": predicted.get("type") == expected["type"],
-        "weight_match": predicted.get("weight_pct") == expected["weight_pct"],
+        "weight_match": predicted.get("weight_pct") is not None
+        and expected["weight_pct"] is not None
+        and abs(predicted["weight_pct"] - expected["weight_pct"]) <= 0.5,
         "date_match": predicted.get("due_date") == expected["due_date"],
     }
-
 
 def run():
     pairs = load_fixture_pairs()
@@ -54,6 +65,7 @@ def run():
 
     totals = {"name_match": 0, "type_match": 0, "weight_match": 0, "date_match": 0}
     total_assignments = 0
+    total_predicted = 0
 
     for source_path, gt_path in pairs:
         with open(gt_path) as f:
@@ -69,16 +81,18 @@ def run():
         print(f"\n{source_path.name}: predicted {len(predicted_assignments)}, "
               f"expected {len(expected_assignments)} assignments")
 
-        # Naive matching by list position — fine for now since our fixtures'
-        # assignments come back in source order. Once we have fixtures with
-        # reordering issues, switch to name-based matching.
-        #
-        # Important: if predicted is shorter than expected (e.g. extraction
-        # found nothing), those missing expected items must still count as
-        # failures, not be silently skipped by zip() stopping at the
-        # shorter list.
-        for i, expected in enumerate(expected_assignments):
-            predicted = predicted_assignments[i] if i < len(predicted_assignments) else {}
+        # Match by normalized name rather than list position, so one missed
+        # or extra row doesn't shift every later comparison. Each predicted
+        # row can satisfy at most one expected row.
+        unmatched_predicted = list(predicted_assignments)
+        for expected in expected_assignments:
+            predicted = next(
+                (p for p in unmatched_predicted
+                 if _normalize_name(p.get("name", "")) == _normalize_name(expected["name"])),
+                None,
+            )
+            if predicted is not None:
+                unmatched_predicted.remove(predicted)
             scores = score_assignment_match(predicted, expected)
             for key, matched in scores.items():
                 totals[key] += int(matched)
@@ -86,10 +100,20 @@ def run():
             if not all(scores.values()):
                 print(f"  MISMATCH on '{expected['name']}': {scores}")
 
+        total_predicted += len(predicted_assignments)
+        for extra in unmatched_predicted:
+            print(f"  EXTRA (not in ground truth): '{extra.get('name')}'")
+
     print("\n--- Overall accuracy ---")
     for key, count in totals.items():
         pct = (count / total_assignments * 100) if total_assignments else 0
         print(f"  {key}: {count}/{total_assignments} ({pct:.0f}%)")
+
+    # name_match above is recall over expected assignments; precision catches
+    # the opposite failure — rows extraction invented that aren't real.
+    found = totals["name_match"]
+    precision = (found / total_predicted * 100) if total_predicted else 0
+    print(f"  precision: {found}/{total_predicted} predicted rows are real ({precision:.0f}%)")
 
 
 if __name__ == "__main__":
