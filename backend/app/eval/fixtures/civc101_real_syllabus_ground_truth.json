@@ -1,6 +1,6 @@
 {
   "source_pdf": "civc101_real_syllabus.pdf",
-  "note": "Real Drexel syllabus template (CIVC 101, Spring 2024). Grading is in points-out-of-100 embedded in prose headings, not 'Name: XX%' lines — the regex baseline is expected to score 0% here. This fixture exists specifically to demonstrate that gap and motivate the move to ML-based extraction (Table QA / Document QA / zero-shot classification).",
+  "note": "Real Drexel syllabus template (CIVC 101, Spring 2024). Grading is in points-out-of-100 embedded in prose headings, not 'Name: XX%' lines. The percent-only regex baseline scored 0% here; extract_point_weights (rule_based_extraction.py) handles 'Name (N points)' headings and converts points to percentages. Due dates are null because the schedule uses per-deliverable M/D dates rather than one date per graded category.",
   "course_code": "CIVC 101",
   "course_name": "Introduction to Civic Engagement",
   "instructor": "Zoraida Cordero",
