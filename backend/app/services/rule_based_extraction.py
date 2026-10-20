@@ -37,6 +37,15 @@ WEIGHT_PATTERN = re.compile(
     re.MULTILINE,
 )
 
+# Matches heading lines like "Journal Entries (20 points)" — the points-based
+# convention real syllabi often use instead of percentages. Anchored to the
+# whole line on purpose: prose like "is worth 10 points (50 total)" mentions
+# points too, but never as a standalone "Name (N points)" line.
+POINTS_PATTERN = re.compile(
+    r"^[ \t]*(?P<name>[A-Za-z][A-Za-z0-9 ,&/'\-]+?)\s*\(\s*(?P<points>\d{1,4}(?:\.\d+)?)\s*(?:points?|pts\.?)\s*\)[ \t]*$",
+    re.MULTILINE | re.IGNORECASE,
+)
+
 # Matches "September 15, 2026" / "Sep 15 2026" style dates
 DATE_PATTERN = re.compile(
     r"(?P<month>January|February|March|April|May|June|July|August|September|"
@@ -46,7 +55,7 @@ DATE_PATTERN = re.compile(
 TYPE_KEYWORDS = {
     AssignmentType.exam: ["exam", "midterm", "final"],
     AssignmentType.quiz: ["quiz"],
-    AssignmentType.homework: ["homework", "assignment", "problem set", "hw"],
+    AssignmentType.homework: ["homework", "assignment", "problem set", "hw", "journal", "reflection"],
     AssignmentType.project: ["project"],
     AssignmentType.participation: ["participation", "attendance"],
 }
@@ -82,6 +91,51 @@ def classify_type(name: str) -> AssignmentType:
     return AssignmentType.other
 
 
+def _classify(name: str) -> tuple[AssignmentType, float]:
+    if USE_ZERO_SHOT_CLASSIFIER:
+        from app.services.zero_shot_classifier import classify_type_zero_shot
+
+        return classify_type_zero_shot(name)
+    return classify_type(name), 0.5
+
+
+def extract_point_weights(text: str) -> list[ExtractedAssignment]:
+    """
+    Fallback for syllabi that grade in points rather than percentages, e.g.
+    "Journal Entries (20 points)" headings under a "100-point scale" section.
+
+    Points are converted to a percentage of the sum of all matched points,
+    so a 100-point scale maps 1:1 and a 500-point course still yields
+    weights that add to 100. If only one heading matches, there's no total
+    to normalize against, so it's dropped rather than reported as 100%.
+    """
+    matches = []
+    for match in POINTS_PATTERN.finditer(text):
+        name = match.group("name").strip(" ,-")
+        if "late" in name.lower():
+            continue
+        matches.append((name, float(match.group("points")), match.group(0).strip()))
+
+    total_points = sum(points for _, points, _ in matches)
+    if len(matches) < 2 or total_points <= 0:
+        return []
+
+    assignments = []
+    for name, points, raw in matches:
+        assignment_type, confidence = _classify(name)
+        assignments.append(
+            ExtractedAssignment(
+                name=name,
+                type=assignment_type,
+                weight_pct=round(points / total_points * 100, 2),
+                due_date=None,
+                raw_source_text=f"{raw} | {points:g}/{total_points:g} points",
+                confidence=confidence,
+            )
+        )
+    return assignments
+
+
 def extract_weights(text: str) -> list[ExtractedAssignment]:
     """
     Finds "Name: XX%" style lines and turns them into ExtractedAssignment
@@ -105,13 +159,7 @@ def extract_weights(text: str) -> list[ExtractedAssignment]:
         if "per day" in match.group(0).lower() or "late" in name.lower():
             continue
 
-        if USE_ZERO_SHOT_CLASSIFIER:
-            from app.services.zero_shot_classifier import classify_type_zero_shot
-
-            assignment_type, confidence = classify_type_zero_shot(name)
-        else:
-            assignment_type = classify_type(name)
-            confidence = 0.5
+        assignment_type, confidence = _classify(name)
 
         assignments.append(
             ExtractedAssignment(
