@@ -7,6 +7,7 @@ from app.services.pdf_parser import extract_tables as extract_pdf_tables
 from app.services.pdf_parser import extract_text as extract_pdf_text
 from app.services.rule_based_extraction import (
     extract_dates,
+    extract_point_weights,
     extract_weights,
     merge_dates_into_assignments,
 )
@@ -53,6 +54,9 @@ def extract_syllabus(file_bytes: bytes, filename: str, content_type: str = "") -
 
     if not assignments:
         assignments = extract_weights(text)
+
+    if not assignments:
+        assignments = extract_point_weights(text)
 
     dates = extract_dates(text)
     assignments = merge_dates_into_assignments(assignments, dates)
